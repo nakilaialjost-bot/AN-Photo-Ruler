@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Site Photo Ruler</title>
+<meta name="description" content="Measure openings, heights and spacings from a site photo using one taped reference.">
+<meta name="theme-color" content="#1B365D">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+
+/* Layout: field-tool. Toolbar strip on top, photo canvas fills the width, readings list + export below; stacks on phones. */
+:root{
+  --bg:#F4F6F8; --panel:#FFFFFF; --ink:#16212C; --muted:#5D6B78; --line:#D5DCE3;
+  --navy:#1B365D; --accent:#C46A2B; --cal:#1F7A5A; --meas:#C46A2B; --canvas:#E6EAEE;
+  --chip:#EEF2F6; --warn:#A4361F;
+  --f-ui:"IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-num:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F151B; --panel:#17212B; --ink:#E6EDF3; --muted:#9AA9B7; --line:#2A3846;
+  --navy:#8FB3E0; --accent:#E39158; --cal:#4CC495; --meas:#E39158; --canvas:#0B1015; --chip:#1E2A36; --warn:#F08A72; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F151B; --panel:#17212B; --ink:#E6EDF3; --muted:#9AA9B7; --line:#2A3846;
+  --navy:#8FB3E0; --accent:#E39158; --cal:#4CC495; --meas:#E39158; --canvas:#0B1015; --chip:#1E2A36; --warn:#F08A72; color-scheme:dark}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--f-ui);font-size:15px;line-height:1.45;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:14px 32px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 16px}
+h1{font-size:1.55rem;font-weight:700;letter-spacing:.01em;color:var(--navy);margin:0;text-wrap:balance}
+.sub{color:var(--muted);font-size:.92rem;margin:0}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button,.filebtn{font:inherit;font-weight:600;font-size:.92rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);
+  border-radius:8px;padding:9px 13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;min-height:42px}
+button:hover,.filebtn:hover{border-color:var(--navy)}
+button:focus-visible,.filebtn:focus-within,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.on{background:var(--navy);color:var(--panel);border-color:var(--navy)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.filebtn input{position:absolute;width:1px;height:1px;opacity:0}
+.filebtn{position:relative}
+.sep{width:1px;height:28px;background:var(--line)}
+.stage{position:relative;background:var(--canvas);border:1px solid var(--line);border-radius:10px;overflow:hidden;touch-action:none}
+canvas{display:block;width:100%;height:62vh;min-height:320px;max-height:720px}
+.zoom{position:absolute;right:10px;bottom:10px;display:flex;gap:6px}
+.zoom button{min-height:38px;padding:6px 11px;background:var(--panel)}
+.hint{position:absolute;left:10px;top:10px;right:10px;pointer-events:none;display:flex}
+.hint span{background:var(--navy);color:var(--panel);font-weight:600;font-size:.86rem;padding:6px 10px;border-radius:6px;max-width:100%}
+.example{position:absolute;left:10px;bottom:10px;background:var(--accent);color:#fff;font-weight:700;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;padding:4px 8px;border-radius:5px}
+.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:14px}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.panel h2{font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin:0}
+.cal{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.cal label{font-size:.85rem;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+input[type=number],input[type=text]{font:inherit;font-family:var(--f-num);font-size:.95rem;color:var(--ink);background:var(--bg);
+  border:1px solid var(--line);border-radius:7px;padding:8px 9px;width:110px}
+.status{font-size:.9rem;padding:8px 10px;border-radius:7px;background:var(--chip)}
+.status b{font-family:var(--f-num)}
+.status.bad{color:var(--warn)}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th{text-align:left;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:6px 6px;border-bottom:1px solid var(--line)}
+td{padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.num{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-weight:600;text-align:right;white-space:nowrap}
+td input[type=text]{width:100%;min-width:0;font-family:var(--f-ui)}
+td button{min-height:34px;padding:4px 9px;font-size:.82rem}
+.empty{color:var(--muted);font-size:.9rem}
+textarea{font-family:var(--f-num);font-size:.85rem;width:100%;min-height:110px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink);padding:8px;box-sizing:border-box;resize:vertical}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+ol.tips{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;font-size:.93rem}
+ol.tips b{color:var(--navy)}
+.small{font-size:.84rem;color:var(--muted)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Site Photo Ruler</h1>
+      <p class="sub">Measure openings, heights and spacings from a straight-on photo. Tape one reference, tap the rest.</p>
+    </div>
+  </header>
+
+  <div class="tools" role="toolbar" aria-label="Tools">
+    <label class="filebtn" for="file">&#128247; Take / load photo<input id="file" type="file" accept="image/*" capture="environment"></label>
+    <span class="sep" aria-hidden="true"></span>
+    <button id="mLine" type="button">1. Reference length</button>
+    <button id="mRect" type="button">1. Reference rectangle</button>
+    <button id="mMeas" type="button">2. Measure</button>
+    <button id="mPan" type="button">Move photo</button>
+    <span class="sep" aria-hidden="true"></span>
+    <button id="undo" type="button">Undo last</button>
+  </div>
+
+  <div class="stage" id="stage">
+    <canvas id="cv" aria-label="Photo measuring area"></canvas>
+    <div class="hint"><span id="hint">Example photo loaded. Load your own photo to start.</span></div>
+    <div class="example" id="exTag">Example photo</div>
+    <div class="zoom">
+      <button id="zIn" type="button" aria-label="Zoom in">+</button>
+      <button id="zOut" type="button" aria-label="Zoom out">&minus;</button>
+      <button id="zFit" type="button">Fit</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <section class="panel" aria-labelledby="hMeas">
+      <h2 id="hMeas">Measurements</h2>
+      <div id="calStatus" class="status"></div>
+      <div class="cal" id="calLineBox">
+        <label for="refLen">Reference length (mm)<input id="refLen" type="number" min="1" step="1" value="1000"></label>
+        <span class="small">Tap both ends of something you have taped: a door width, a 1 m mark, a cladding board run.</span>
+      </div>
+      <div class="cal" id="calRectBox" hidden>
+        <label for="refW">Width (mm)<input id="refW" type="number" min="1" step="1" value="1200"></label>
+        <label for="refH">Height (mm)<input id="refH" type="number" min="1" step="1" value="1400"></label>
+        <span class="small">Tap 4 corners in order: top-left, top-right, bottom-right, bottom-left. Corrects for camera angle.</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th style="width:48%">Item</th><th style="text-align:right">Length (mm)</th><th></th></tr></thead>
+          <tbody id="list"></tbody>
+        </table>
+      </div>
+      <p class="empty" id="emptyMsg" hidden>No measurements yet. Set a reference, choose Measure, then tap two points.</p>
+      <h2>Copy to field sheet</h2>
+      <textarea id="csv" readonly aria-label="Measurements as text"></textarea>
+      <div class="row"><button id="copy" type="button" class="primary">Copy measurements</button><button id="share" type="button">Share</button><button id="dl" type="button">Save as CSV</button><span class="small" id="copyMsg"></span></div>
+    </section>
+
+    <section class="panel" aria-labelledby="hTips">
+      <h2 id="hTips">Working alone on site</h2>
+      <ol class="tips">
+        <li><b>Stand square to the wall.</b> Phone held level, centred on the area you want, at roughly mid-height. Fill the frame but keep corners in shot.</li>
+        <li><b>Put a known size in the same plane.</b> Tape the width of one door or window, or stick a 1 m length of masking tape on the wall. Everything you measure must be on that same wall face.</li>
+        <li><b>Use a rectangle when you can't stand square.</b> A window frame or a sheet of known size, with all 4 corners visible, lets the ruler correct the angle.</li>
+        <li><b>Long runs: tape on your own.</b> Hook the tape over a screw, nail or clamp at one end, or use the post spacing: measure one bay, then count bays.</li>
+        <li><b>Check yourself.</b> Measure one item twice from two photos. Differences above 1&ndash;2% mean the photo wasn't square: retake it.</li>
+      </ol>
+      <p class="small">Photo measurements suit openings, heights and spacings to about &plusmn;1&ndash;2%. Use a tape or laser for overall building sizes and anything structural.</p>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+  const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  const $ = id => document.getElementById(id);
+  const S = { img: null, mode: 'meas', view: { s: 1, ox: 0, oy: 0 },
+    cal: null,            // {type:'line', a, b, mm} | {type:'rect', p:[4], w, h, H}
+    pend: [],             // points being placed
+    meas: [], n: 0, drag: null, loupe: null, example: true };
+
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  // ---------- geometry ----------
+  function solveH(src, dst) { // 4 point homography src->dst
+    const A = [], b = [];
+    for (let i = 0; i < 4; i++) {
+      const [x, y] = src[i], [u, v] = dst[i];
+      A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]); b.push(u);
+      A.push([0, 0, 0, x, y, 1, -v * x, -v * y]); b.push(v);
+    }
+    for (let c = 0; c < 8; c++) {           // gaussian elimination
+      let p = c; for (let r = c + 1; r < 8; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
+      [A[c], A[p]] = [A[p], A[c]]; [b[c], b[p]] = [b[p], b[c]];
+      if (Math.abs(A[c][c]) < 1e-12) return null;
+      for (let r = 0; r < 8; r++) if (r !== c) {
+        const f = A[r][c] / A[c][c];
+        for (let k = c; k < 8; k++) A[r][k] -= f * A[c][k]; b[r] -= f * b[c];
+      }
+    }
+    const h = b.map((v, i) => v / A[i][i]); h.push(1); return h;
+  }
+  const applyH = (h, [x, y]) => { const w = h[6] * x + h[7] * y + h[8]; return [(h[0] * x + h[1] * y + h[2]) / w, (h[3] * x + h[4] * y + h[5]) / w]; };
+  const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+  function lengthMM(a, b) {
+    if (!S.cal) return null;
+    if (S.cal.type === 'line') { const px = dist(S.cal.a, S.cal.b); return px > 0 ? dist(a, b) * S.cal.mm / px : null; }
+    if (S.cal.type === 'rect' && S.cal.H) return dist(applyH(S.cal.H, a), applyH(S.cal.H, b));
+    return null;
+  }
+
+  // ---------- view ----------
+  function resize() {
+    const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    cv.width = Math.round(r.width * d); cv.height = Math.round(r.height * d);
+    ctx.setTransform(d, 0, 0, d, 0, 0); draw();
+  }
+  function fit() {
+    if (!S.img) return; const r = cv.getBoundingClientRect();
+    const s = Math.min(r.width / S.img.width, r.height / S.img.height) * 0.96;
+    S.view = { s, ox: (r.width - S.img.width * s) / 2, oy: (r.height - S.img.height * s) / 2 }; draw();
+  }
+  const toImg = (x, y) => [(x - S.view.ox) / S.view.s, (y - S.view.oy) / S.view.s];
+  const toScr = ([x, y]) => [x * S.view.s + S.view.ox, y * S.view.s + S.view.oy];
+  function zoomAt(f, cx, cy) {
+    const [ix, iy] = toImg(cx, cy); S.view.s = Math.max(0.05, Math.min(20, S.view.s * f));
+    S.view.ox = cx - ix * S.view.s; S.view.oy = cy - iy * S.view.s; draw();
+  }
+
+  // ---------- drawing ----------
+  function dot(p, col, r = 6) {
+    const [x, y] = toScr(p); ctx.beginPath(); ctx.arc(x, y, r, 0, 7);
+    ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = col; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, 1.6, 0, 7); ctx.fillStyle = col; ctx.fill();
+  }
+  function seg(a, b, col, label) {
+    const A = toScr(a), B = toScr(b);
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.moveTo(...A); ctx.lineTo(...B); ctx.stroke();
+    ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.beginPath(); ctx.moveTo(...A); ctx.lineTo(...B); ctx.stroke();
+    if (label) {
+      const mx = (A[0] + B[0]) / 2, my = (A[1] + B[1]) / 2;
+      ctx.font = '600 13px ' + css('--f-num'); const w = ctx.measureText(label).width + 12;
+      ctx.fillStyle = col; ctx.beginPath(); ctx.roundRect(mx - w / 2, my - 22, w, 20, 4); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(label, mx, my - 8); ctx.textAlign = 'left';
+    }
+    dot(a, col); dot(b, col);
+  }
+  function draw() {
+    const r = cv.getBoundingClientRect();
+    ctx.fillStyle = css('--canvas'); ctx.fillRect(0, 0, r.width, r.height);
+    if (!S.img) return;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(S.img, S.view.ox, S.view.oy, S.img.width * S.view.s, S.img.height * S.view.s);
+    const cal = css('--cal'), meas = css('--meas');
+    if (S.cal?.type === 'line') seg(S.cal.a, S.cal.b, cal, `REF ${fmt(S.cal.mm)}`);
+    if (S.cal?.type === 'rect') {
+      ctx.beginPath(); S.cal.p.forEach((p, i) => { const q = toScr(p); i ? ctx.lineTo(...q) : ctx.moveTo(...q); }); ctx.closePath();
+      ctx.fillStyle = 'rgba(31,122,90,.12)'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = cal; ctx.stroke();
+      S.cal.p.forEach(p => dot(p, cal));
+      const c = toScr(S.cal.p[0]); ctx.font = '600 13px ' + css('--f-num'); ctx.fillStyle = cal;
+      ctx.fillText(`REF ${fmt(S.cal.w)} x ${fmt(S.cal.h)}`, c[0] + 8, c[1] - 10);
+    }
+    S.meas.forEach(m => { const L = lengthMM(m.a, m.b); seg(m.a, m.b, meas, L == null ? '?' : fmt(L)); });
+    S.pend.forEach(p => dot(p, S.mode === 'meas' ? meas : cal));
+    if (S.pend.length > 1 && S.mode === 'rect') {
+      ctx.beginPath(); S.pend.forEach((p, i) => { const q = toScr(p); i ? ctx.lineTo(...q) : ctx.moveTo(...q); });
+      ctx.strokeStyle = cal; ctx.lineWidth = 2; ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]);
+    }
+    if (S.loupe) drawLoupe(S.loupe);
+  }
+  function drawLoupe(p) {
+    const R = 62, Z = 3, cx = R + 12, cy = R + 48;
+    const [sx, sy] = toScr(p);
+    ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.clip();
+    ctx.fillStyle = css('--canvas'); ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+    const s = S.view.s * Z;
+    ctx.drawImage(S.img, cx - p[0] * s, cy - p[1] * s, S.img.width * s, S.img.height * s);
+    ctx.strokeStyle = css('--accent'); ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy); ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R); ctx.stroke();
+    ctx.restore(); ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = css('--navy'); ctx.stroke();
+  }
+  const fmt = v => Math.round(v).toLocaleString('en-AU').replace(/,/g, ' ') + ' mm';
+
+  // ---------- UI state ----------
+  function setMode(m) {
+    S.mode = m; S.pend = [];
+    [['mLine', 'line'], ['mRect', 'rect'], ['mMeas', 'meas'], ['mPan', 'pan']].forEach(([id, k]) => $(id).classList.toggle('on', k === m));
+    $('calLineBox').hidden = m === 'rect'; $('calRectBox').hidden = m !== 'rect';
+    hint(); draw();
+  }
+  function hint() {
+    const h = { line: 'Tap both ends of your taped reference, then check the length below.',
+      rect: `Tap corner ${S.pend.length + 1} of 4 (top-left, top-right, bottom-right, bottom-left).`,
+      meas: S.cal ? (S.pend.length ? 'Tap the second point.' : 'Tap the first point of the item to measure. Drag any point to adjust.') : 'Set a reference first (step 1).',
+      pan: 'Drag to move the photo. Use + / - to zoom.' }[S.mode];
+    $('hint').textContent = S.example ? 'Example photo. ' + h : h;
+  }
+  function refresh() {
+    const st = $('calStatus');
+    if (!S.cal) { st.className = 'status bad'; st.innerHTML = 'No reference set. Measurements need a taped reference in the same wall plane.'; }
+    else if (S.cal.type === 'line') { st.className = 'status'; st.innerHTML = `Reference: line <b>${fmt(S.cal.mm)}</b> (photo must be square to the wall).`; }
+    else { st.className = 'status'; st.innerHTML = `Reference: rectangle <b>${fmt(S.cal.w)} x ${fmt(S.cal.h)}</b>, angle corrected.`; }
+    const tb = $('list'); tb.innerHTML = '';
+    S.meas.forEach((m, i) => {
+      const tr = document.createElement('tr'); const L = lengthMM(m.a, m.b);
+      tr.innerHTML = `<td><input type="text" id="lab${m.id}" value="${m.label.replace(/"/g, '&quot;')}" aria-label="Item name"></td><td class="num">${L == null ? '-' : fmt(L)}</td><td><button type="button" data-del="${i}">Delete</button></td>`;
+      tb.appendChild(tr);
+      tr.querySelector('input').addEventListener('input', e => { m.label = e.target.value || ('M' + m.id); draw(); csv(); });
+    });
+    tb.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { S.meas.splice(+b.dataset.del, 1); refresh(); draw(); });
+    $('emptyMsg').hidden = S.meas.length > 0; csv(); hint();
+  }
+  function csv() {
+    const lines = ['Item,Length (mm)'];
+    if (S.cal) lines.push(S.cal.type === 'line' ? `Reference line,${Math.round(S.cal.mm)}` : `Reference rectangle,${Math.round(S.cal.w)} x ${Math.round(S.cal.h)}`);
+    S.meas.forEach(m => { const L = lengthMM(m.a, m.b); lines.push(`${m.label.replace(/,/g, ' ')},${L == null ? '' : Math.round(L)}`); });
+    $('csv').value = lines.join('\n');
+  }
+  function setCalLine(a, b) { S.cal = { type: 'line', a, b, mm: +$('refLen').value || 1000 }; }
+  function setCalRect(p) {
+    const w = +$('refW').value || 1000, h = +$('refH').value || 1000;
+    S.cal = { type: 'rect', p, w, h, H: solveH(p, [[0, 0], [w, 0], [w, h], [0, h]]) };
+  }
+
+  // ---------- pointer ----------
+  let pointers = new Map(), pinch = null, moved = false, downAt = null;
+  function hit(x, y) {
+    const pts = [];
+    if (S.cal?.type === 'line') pts.push([S.cal, 'a'], [S.cal, 'b']);
+    if (S.cal?.type === 'rect') S.cal.p.forEach((_, i) => pts.push([S.cal.p, i]));
+    S.meas.forEach(m => pts.push([m, 'a'], [m, 'b']));
+    for (const [o, k] of pts) { const q = toScr(o[k]); if (Math.hypot(q[0] - x, q[1] - y) < 18) return [o, k]; }
+    return null;
+  }
+  const pos = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  cv.addEventListener('pointerdown', e => {
+    cv.setPointerCapture(e.pointerId); pointers.set(e.pointerId, pos(e));
+    if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch = { d: dist(a, b), s: S.view.s }; S.drag = null; return; }
+    const [x, y] = pos(e); moved = false; downAt = [x, y];
+    const h = S.mode !== 'pan' && hit(x, y);
+    if (h) { S.drag = { o: h[0], k: h[1] }; S.loupe = h[0][h[1]]; draw(); }
+    else S.drag = { pan: true, ox: S.view.ox, oy: S.view.oy, x, y };
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!pointers.has(e.pointerId)) return; pointers.set(e.pointerId, pos(e));
+    if (pinch && pointers.size === 2) {
+      const [a, b] = [...pointers.values()]; const c = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      zoomAt((pinch.s * dist(a, b) / pinch.d) / S.view.s, ...c); return;
+    }
+    const [x, y] = pos(e); if (downAt && Math.hypot(x - downAt[0], y - downAt[1]) > 6) moved = true;
+    if (!S.drag) return;
+    if (S.drag.pan) { if (moved && (S.mode === 'pan' || true)) { S.view.ox = S.drag.ox + x - S.drag.x; S.view.oy = S.drag.oy + y - S.drag.y; draw(); } return; }
+    const p = toImg(x, y); S.drag.o[S.drag.k] = p; S.loupe = p;
+    if (S.cal?.type === 'rect' && S.drag.o === S.cal.p) setCalRect(S.cal.p);
+    draw(); refresh();
+  });
+  function up(e) {
+    pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null;
+    const d = S.drag; S.drag = null; S.loupe = null;
+    if (d && d.pan && !moved && S.img && S.mode !== 'pan') place(toImg(...pos(e)));
+    draw();
+  }
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  cv.addEventListener('wheel', e => { e.preventDefault(); const [x, y] = pos(e); zoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, x, y); }, { passive: false });
+
+  function place(p) {
+    if (S.mode === 'line') { S.pend.push(p); if (S.pend.length === 2) { setCalLine(...S.pend); S.pend = []; setMode('meas'); } }
+    else if (S.mode === 'rect') { S.pend.push(p); if (S.pend.length === 4) { setCalRect(S.pend); S.pend = []; setMode('meas'); } }
+    else if (S.mode === 'meas') {
+      if (!S.cal) { hint(); return; }
+      S.pend.push(p); if (S.pend.length === 2) { S.n++; S.meas.push({ id: S.n, label: 'M' + S.n, a: S.pend[0], b: S.pend[1] }); S.pend = []; }
+    }
+    refresh(); draw();
+  }
+
+  // ---------- controls ----------
+  $('mLine').onclick = () => setMode('line'); $('mRect').onclick = () => setMode('rect');
+  $('mMeas').onclick = () => setMode('meas'); $('mPan').onclick = () => setMode('pan');
+  $('zIn').onclick = () => { const r = cv.getBoundingClientRect(); zoomAt(1.3, r.width / 2, r.height / 2); };
+  $('zOut').onclick = () => { const r = cv.getBoundingClientRect(); zoomAt(1 / 1.3, r.width / 2, r.height / 2); };
+  $('zFit').onclick = fit;
+  $('undo').onclick = () => { if (S.pend.length) S.pend.pop(); else if (S.meas.length) S.meas.pop(); else S.cal = null; refresh(); draw(); };
+  $('refLen').addEventListener('input', () => { if (S.cal?.type === 'line') { S.cal.mm = +$('refLen').value || 1; refresh(); draw(); } });
+  ['refW', 'refH'].forEach(id => $(id).addEventListener('input', () => { if (S.cal?.type === 'rect') { setCalRect(S.cal.p); refresh(); draw(); } }));
+  $('copy').onclick = () => {
+    const t = $('csv').value;
+    navigator.clipboard.writeText(t).then(() => $('copyMsg').textContent = 'Copied.', () => { $('csv').select(); $('copyMsg').textContent = 'Selected - copy with your keyboard or long-press.'; });
+  };
+  $('share').onclick = async () => {
+    const t = $('csv').value;
+    if (navigator.share) { try { await navigator.share({ title: 'Site measurements', text: t }); $('copyMsg').textContent = 'Shared.'; } catch (e) {} }
+    else $('copyMsg').textContent = 'Sharing is not available here - use Copy.';
+  };
+  $('dl').onclick = () => {
+    const blob = new Blob([$('csv').value], { type: 'text/csv' }), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'site-measurements-' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(a); a.click(); a.remove(); $('copyMsg').textContent = 'Saved to downloads.';
+  };
+  $('file').addEventListener('change', e => {
+    const f = e.target.files[0]; if (!f) return;
+    const url = URL.createObjectURL(f), im = new Image();
+    im.onload = () => { S.img = im; S.example = false; $('exTag').hidden = true; S.cal = null; S.meas = []; S.n = 0; S.pend = []; fit(); setMode('line'); refresh(); };
+    im.onerror = () => { $('hint').textContent = 'That file could not be opened as a photo. Try a JPG or PNG.'; };
+    im.src = url;
+  });
+
+  // ---------- example photo (generated) ----------
+  function makeExample() {
+    const k = 0.34, W = Math.round(4600 * k), H = Math.round(2900 * k);   // 4.6 m x 2.9 m wall face
+    const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+    g.fillStyle = '#EFE4CB'; g.fillRect(0, 0, W, H);
+    for (let y = 0; y < H; y += 170 * k) { g.fillStyle = 'rgba(120,100,60,.18)'; g.fillRect(0, y, W, 2); g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(0, y + 3, W, 1); }
+    g.fillStyle = '#D9C8A0'; g.fillRect(3300 * k, 0, 45 * k, H);                 // cover strip
+    const wx = 900 * k, wy = 700 * k, ww = 1200 * k, wh = 1400 * k;             // window 1200 x 1400
+    g.fillStyle = '#D8C08D'; g.fillRect(wx - 70 * k, wy - 70 * k, ww + 140 * k, wh + 140 * k);
+    g.fillStyle = '#F7F8F8'; g.fillRect(wx, wy, ww, wh);
+    for (let i = 0; i < 2; i++) {
+      const gx = wx + 25 * k + i * (ww / 2 - 12 * k); g.fillStyle = '#C9DDEA'; g.fillRect(gx, wy + 25 * k, ww / 2 - 38 * k, wh - 50 * k);
+      g.fillStyle = 'rgba(255,255,255,.55)'; for (let y = wy + 40 * k; y < wy + wh - 40 * k; y += 30 * k) g.fillRect(gx + 6, y, ww / 2 - 38 * k - 12, 2);
+    }
+    const dx = 2650 * k, dy = 800 * k; g.fillStyle = '#F2EEE3'; g.fillRect(dx, dy, 820 * k, H - dy);   // door 820 wide
+    g.strokeStyle = '#B9AE90'; g.lineWidth = 3; g.strokeRect(dx, dy, 820 * k, H - dy);
+    g.fillStyle = '#9AA0A6'; g.beginPath(); g.arc(dx + 720 * k, dy + 1050 * k, 9, 0, 7); g.fill();
+    g.fillStyle = '#F2B233'; g.fillRect(300 * k, 2350 * k, 1000 * k, 34 * k);                 // 1 m masking tape
+    g.fillStyle = '#5A4A20'; g.font = `${Math.round(70 * k)}px sans-serif`; g.fillText('1000', 650 * k, 2340 * k);
+    const im = new Image(); im.onload = () => {
+      S.img = im; fit();
+      S.cal = { type: 'line', a: [300 * k, 2367 * k], b: [1300 * k, 2367 * k], mm: 1000 };
+      S.meas = [{ id: 1, label: 'Example: window width', a: [wx, wy - 200 * k], b: [wx + ww, wy - 200 * k] },
+                { id: 2, label: 'Example: window height', a: [wx - 120 * k, wy], b: [wx - 120 * k, wy + wh] },
+                { id: 3, label: 'Example: door width', a: [dx, dy + 300 * k], b: [dx + 820 * k, dy + 300 * k] }];
+      S.n = 3; setMode('meas'); refresh(); draw();
+    };
+    im.src = c.toDataURL('image/jpeg', .9);
+  }
+
+  new ResizeObserver(() => { const keep = S.img; resize(); if (keep && S.view.s === 1 && S.view.ox === 0) fit(); }).observe(cv);
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', draw);
+  resize(); makeExample();
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+
+</body>
+</html>

@@ -1,7 +1,7 @@
 {
-  "name": "Site Photo Ruler",
-  "short_name": "Photo Ruler",
-  "description": "Measure openings, heights and spacings from a site photo using one taped reference.",
+  "name": "AN Photo Ruler",
+  "short_name": "AN Ruler",
+  "description": "Site measuring kit: camera, plan, ruler and photo ruler.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

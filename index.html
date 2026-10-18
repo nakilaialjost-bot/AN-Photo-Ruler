@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Site Photo Ruler</title>
+<title>AN Photo Ruler</title>
 <meta name="description" content="Measure openings, heights and spacings from a site photo using one taped reference.">
 <meta name="theme-color" content="#1B365D">
 <link rel="manifest" href="manifest.webmanifest">
@@ -79,18 +79,178 @@ ol.tips{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;f
 ol.tips b{color:var(--navy)}
 .small{font-size:.84rem;color:var(--muted)}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
+
+/* ---- v2: app shell ---- */
+.appbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--navy);color:#fff;display:flex;align-items:center;gap:10px;
+  margin-left:calc(-1 * max(16px, env(safe-area-inset-left, 0px)));margin-right:calc(-1 * max(16px, env(safe-area-inset-right, 0px)));
+  padding:10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px));margin-top:-14px;margin-bottom:14px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--navy)}
+.appbar .brand{font-weight:700;font-size:1.15rem;letter-spacing:.02em;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.appbar .brand small{font-weight:500;opacity:.75;margin-left:6px}
+.appbar button{background:transparent;border:1px solid rgba(255,255,255,.35);color:#fff;min-height:38px;padding:6px 11px}
+.appbar button:hover{border-color:#fff}
+.mono{display:inline-grid;place-items:center;width:30px;height:30px;border:2px solid #fff;border-radius:4px;font-weight:700;font-size:.8rem;position:relative;flex:none}
+.mono::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,transparent 47%,var(--accent) 47%,var(--accent) 53%,transparent 53%)}
+.screen{display:flex;flex-direction:column;gap:14px;max-width:1180px;margin:0 auto;width:100%}
+.home-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (min-width:820px){.home-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 14px;display:flex;flex-direction:column;gap:8px;align-items:flex-start;
+  text-align:left;min-height:150px;cursor:pointer;color:var(--ink);font:inherit}
+.tile:hover{border-color:var(--accent)}
+.tile svg{width:44px;height:44px;stroke:var(--accent);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.tile b{font-size:1.12rem;color:var(--navy)}
+.tile span{font-size:.86rem;color:var(--muted)}
+.homehead{display:flex;flex-direction:column;gap:4px}
+.saved-strip{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:.92rem}
+.kv dt{color:var(--muted)} .kv dd{margin:0;font-family:var(--f-num);font-weight:600}
+/* camera */
+.cam{position:relative;background:#000;border-radius:10px;overflow:hidden;aspect-ratio:3/4;max-height:68vh;width:100%;max-width:560px;margin:0 auto}
+.cam video{width:100%;height:100%;object-fit:cover;display:block}
+.cross{position:absolute;inset:0;pointer-events:none}
+.cross::before,.cross::after{content:"";position:absolute;background:var(--accent);box-shadow:0 0 0 1px rgba(0,0,0,.4)}
+.cross::before{left:50%;top:calc(50% - 26px);width:2px;height:52px;transform:translateX(-1px)}
+.cross::after{top:50%;left:calc(50% - 26px);height:2px;width:52px;transform:translateY(-1px)}
+.readout{position:absolute;left:10px;right:10px;bottom:10px;background:rgba(15,21,27,.78);color:#fff;border-radius:8px;padding:8px 10px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-family:var(--f-num);font-size:.9rem}
+.readout b{color:var(--accent);font-size:1.15rem}
+.camoff{position:absolute;inset:0;display:grid;place-items:center;color:#fff;text-align:center;padding:20px;font-size:.95rem}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;min-height:40px}
+/* plan */
+.plancv{width:100%;height:58vh;min-height:320px;display:block}
+.wallform{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
+/* ruler */
+.rulerwrap{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.rulercv{display:block;width:100%;height:70vh;min-height:360px;touch-action:none}
+.card{border:2px dashed var(--accent);border-radius:8px;background:repeating-linear-gradient(45deg,transparent 0 8px,rgba(196,106,43,.10) 8px 16px);display:grid;place-items:center;color:var(--muted);font-size:.85rem;margin:6px auto}
+input[type=range]{width:100%;accent-color:var(--accent)}
+/* saved */
+.saved-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.sitem{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.sitem img{width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--canvas);display:block}
+.sitem .meta{padding:10px;display:flex;flex-direction:column;gap:6px}
+.sitem .meta b{color:var(--navy)}
+.sitem pre{font-family:var(--f-num);font-size:.78rem;white-space:pre-wrap;margin:0;max-height:120px;overflow:auto;color:var(--ink)}
+.pill{display:inline-block;font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:var(--chip);color:var(--navy);padding:2px 7px;border-radius:999px}
+
 </style>
 </head>
 <body>
 
 
-<div class="wrap">
-  <header>
-    <div>
-      <h1>Site Photo Ruler</h1>
-      <p class="sub">Measure openings, heights and spacings from a straight-on photo. Tape one reference, tap the rest.</p>
+<div class="appbar">
+  <button id="back" type="button" aria-label="Back to home" hidden>&larr; Home</button>
+  <span class="mono" aria-hidden="true">AN</span>
+  <span class="brand" id="barTitle">AN Photo Ruler <small>site measuring kit</small></span>
+  <button id="toSaved" type="button">Saved</button>
+</div>
+
+<section class="screen" id="scr-home">
+  <div class="homehead">
+    <h1>Measure the building on your own</h1>
+    <p class="sub">Four tools for working solo on site. Measurements stay on this phone until you share them.</p>
+  </div>
+  <div class="home-grid">
+    <button class="tile" type="button" data-go="camera">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="14" width="36" height="24" rx="4"/><circle cx="24" cy="26" r="7"/><path d="M17 14l3-5h8l3 5"/><path d="M2 26h4M42 26h4"/></svg>
+      <b>Camera</b><span>Aim at the floor point and top: get distance and height from the tilt sensor.</span>
+    </button>
+    <button class="tile" type="button" data-go="plan">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M6 8h36v32H6z"/><path d="M24 8v14M24 30v10M6 24h12M32 24h10"/><path d="M24 22a6 6 0 0 1 6 6"/></svg>
+      <b>Plan</b><span>Sketch a room square, type each wall length, get area and perimeter.</span>
+    </button>
+    <button class="tile" type="button" data-go="ruler">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="4" y="16" width="40" height="16" rx="2"/><path d="M10 16v6M16 16v4M22 16v6M28 16v4M34 16v6M40 16v4"/></svg>
+      <b>Ruler</b><span>On-screen ruler for small items, calibrated with a bank card.</span>
+    </button>
+    <button class="tile" type="button" data-go="photo">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M6 12V6h6M36 6h6v6M42 36v6h-6M12 42H6v-6"/><path d="M14 30l20-12"/><circle cx="14" cy="30" r="2.5"/><circle cx="34" cy="18" r="2.5"/></svg>
+      <b>Photo ruler</b><span>Tape one reference in a photo, then tap to measure openings and heights.</span>
+    </button>
+  </div>
+  <div class="panel">
+    <div class="saved-strip"><h2>Recently saved</h2><button type="button" data-go="saved">Open saved</button></div>
+    <div id="recent" class="small">Nothing saved yet. Use Save in any tool.</div>
+  </div>
+</section>
+
+<section class="screen" id="scr-camera" hidden>
+  <div class="panel">
+    <h2>Camera measure</h2>
+    <p class="small" style="margin:0">Hold the phone upright at a steady height. Aim the cross at where the item meets the floor, tap <b>Mark base</b>, then aim at the top and tap <b>Mark top</b>.</p>
+    <div class="cal">
+      <label for="camH">Camera height above floor (mm)<input id="camH" type="number" min="200" step="10" value="1500"></label>
+      <span class="small">Measure it once with a tape: phone held at your normal height. Eye level minus about 100 mm is typical.</span>
     </div>
-  </header>
+  </div>
+  <div class="cam" id="camBox">
+    <video id="video" playsinline muted></video>
+    <div class="cross" aria-hidden="true"></div>
+    <div class="camoff" id="camOff"><div><p>Camera and tilt sensor are off.</p><button id="camStart" type="button" class="primary">Start camera</button></div></div>
+    <div class="readout"><span>Tilt <b id="tilt">--</b></span><span>Distance <b id="liveD">--</b></span></div>
+  </div>
+  <div class="row" style="justify-content:center">
+    <button id="markBase" type="button" class="primary">Mark base</button>
+    <button id="markTop" type="button">Mark top</button>
+    <button id="camSave" type="button">Save readings</button>
+  </div>
+  <div class="panel">
+    <h2>Readings</h2>
+    <dl class="kv" id="camKV"><dt>Distance to base</dt><dd>--</dd><dt>Height of top</dt><dd>--</dd></dl>
+    <div style="overflow-x:auto"><table><thead><tr><th>Item</th><th style="text-align:right">Distance</th><th style="text-align:right">Height</th><th></th></tr></thead><tbody id="camList"></tbody></table></div>
+    <p class="small">Accuracy depends on holding the phone at the same height and the floor being level: about &plusmn;3&ndash;5% within 5 m. Check one known item first.</p>
+  </div>
+</section>
+
+<section class="screen" id="scr-plan" hidden>
+  <div class="panel">
+    <h2>Room plan</h2>
+    <div class="cal">
+      <label for="planName">Plan name<input id="planName" type="text" value="Kitchenette" style="width:180px"></label>
+      <span class="small">Tap corners in order around the room. Walls snap square. Tap a wall to type its measured length. Tap the first corner to close.</span>
+    </div>
+  </div>
+  <div class="stage"><canvas id="pcv" class="plancv" aria-label="Plan sketch area"></canvas>
+    <div class="zoom"><button id="pIn" type="button" aria-label="Zoom in">+</button><button id="pOut" type="button" aria-label="Zoom out">&minus;</button><button id="pFit" type="button">Fit</button></div>
+  </div>
+  <div class="row">
+    <button id="pUndo" type="button">Undo corner</button>
+    <button id="pClear" type="button">New plan</button>
+    <button id="pSave" type="button" class="primary">Save plan</button>
+  </div>
+  <div class="panel">
+    <div class="wallform" id="wallForm" hidden>
+      <label for="wallLen" class="small" style="display:flex;flex-direction:column;gap:3px">Wall <span id="wallName">W1</span> length (mm)<input id="wallLen" type="number" min="1" step="1"></label>
+      <button id="wallSet" type="button" class="primary">Set length</button>
+    </div>
+    <dl class="kv" id="planKV"></dl>
+    <div style="overflow-x:auto"><table><thead><tr><th>Wall</th><th style="text-align:right">Length</th><th>Status</th></tr></thead><tbody id="wallList"></tbody></table></div>
+    <div class="row"><button id="pCopy" type="button">Copy plan figures</button><span class="small" id="pMsg"></span></div>
+  </div>
+</section>
+
+<section class="screen" id="scr-ruler" hidden>
+  <div class="panel">
+    <h2>Calibrate once</h2>
+    <p class="small" style="margin:0">Place a bank or ID card on the screen and drag the slider until the box matches the card's long side (85.6 mm).</p>
+    <div class="card" id="cardBox">85.6 x 54 mm card</div>
+    <input id="cardSlider" type="range" min="2" max="8" step="0.01" value="3.78" aria-label="Card size">
+    <div class="row"><span class="small" id="pxmm"></span><div class="seg"><button id="uMM" type="button" class="on">mm</button><button id="uIN" type="button">inch</button></div></div>
+  </div>
+  <div class="rulerwrap"><canvas id="rcv" class="rulercv" aria-label="On-screen ruler"></canvas></div>
+  <p class="small">Drag the orange marker to read a length from the top edge. Line the item up against the left edge of the screen.</p>
+</section>
+
+<section class="screen" id="scr-saved" hidden>
+  <div class="saved-strip"><h1 style="font-size:1.3rem">Saved measurements</h1><button id="clearAll" type="button">Delete all</button></div>
+  <p class="small" id="clearConfirm" hidden>Tap <b>Delete all</b> again to confirm.</p>
+  <div class="saved-list" id="savedList"></div>
+  <p class="empty" id="savedEmpty">Nothing saved yet. Use Save in Photo ruler, Camera or Plan.</p>
+</section>
+
+<section class="screen" id="scr-photo" hidden>
+<div class="wrap">
+
 
   <div class="tools" role="toolbar" aria-label="Tools">
     <label class="filebtn" for="file">&#128247; Take / load photo<input id="file" type="file" accept="image/*" capture="environment"></label>
@@ -136,7 +296,7 @@ ol.tips b{color:var(--navy)}
       <p class="empty" id="emptyMsg" hidden>No measurements yet. Set a reference, choose Measure, then tap two points.</p>
       <h2>Copy to field sheet</h2>
       <textarea id="csv" readonly aria-label="Measurements as text"></textarea>
-      <div class="row"><button id="copy" type="button" class="primary">Copy measurements</button><button id="share" type="button">Share</button><button id="dl" type="button">Save as CSV</button><span class="small" id="copyMsg"></span></div>
+      <div class="row"><button id="copy" type="button" class="primary">Copy measurements</button><button id="share" type="button">Share</button><button id="dl" type="button">Save as CSV</button><button id="psave" type="button">Save to app</button><span class="small" id="copyMsg"></span></div>
     </section>
 
     <section class="panel" aria-labelledby="hTips">
@@ -153,6 +313,7 @@ ol.tips b{color:var(--navy)}
   </div>
 </div>
 
+</section>
 <script>
 (() => {
   const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
@@ -370,6 +531,7 @@ ol.tips b{color:var(--navy)}
     const t = $('csv').value;
     navigator.clipboard.writeText(t).then(() => $('copyMsg').textContent = 'Copied.', () => { $('csv').select(); $('copyMsg').textContent = 'Selected - copy with your keyboard or long-press.'; });
   };
+  $('psave').onclick = () => { window.anprSavePhoto && window.anprSavePhoto(); $('copyMsg').textContent = 'Saved in the app.'; };
   $('share').onclick = async () => {
     const t = $('csv').value;
     if (navigator.share) { try { await navigator.share({ title: 'Site measurements', text: t }); $('copyMsg').textContent = 'Shared.'; } catch (e) {} }
@@ -418,12 +580,302 @@ ol.tips b{color:var(--navy)}
     im.src = c.toDataURL('image/jpeg', .9);
   }
 
-  new ResizeObserver(() => { const keep = S.img; resize(); if (keep && S.view.s === 1 && S.view.ox === 0) fit(); }).observe(cv);
+  new ResizeObserver(() => { const keep = S.img; resize(); if (keep && (!(S.view.s > 0.001) || (S.view.s === 1 && S.view.ox === 0))) fit(); }).observe(cv);
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', draw);
   resize(); makeExample();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
 </script>
 
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const fmt = v => Math.round(v).toLocaleString('en-AU').replace(/,/g, ' ') + ' mm';
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
+  };
+
+  // ---------------- navigation ----------------
+  const titles = { home: 'AN Photo Ruler', photo: 'Photo ruler', camera: 'Camera measure', plan: 'Room plan', ruler: 'Ruler', saved: 'Saved' };
+  let current = 'home';
+  function go(name) {
+    if (current === 'camera' && name !== 'camera') stopCam();
+    document.querySelectorAll('.screen').forEach(s => s.hidden = s.id !== 'scr-' + name);
+    $('back').hidden = name === 'home';
+    $('barTitle').innerHTML = name === 'home' ? 'AN Photo Ruler <small>site measuring kit</small>' : titles[name];
+    current = name; window.scrollTo(0, 0);
+    if (name === 'photo') window.dispatchEvent(new Event('resize'));
+    if (name === 'plan') requestAnimationFrame(pResize);
+    if (name === 'ruler') requestAnimationFrame(rResize);
+    if (name === 'saved') renderSaved();
+    if (name === 'home') renderRecent();
+  }
+  document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => go(b.dataset.go)));
+  $('back').onclick = () => go('home'); $('toSaved').onclick = () => go('saved');
+
+  // ---------------- saved items ----------------
+  const SKEY = 'anpr.saved';
+  function addSaved(item) {
+    const list = store.get(SKEY, []); item.id = Date.now(); item.date = new Date().toLocaleString('en-AU');
+    list.unshift(item);
+    while (!store.set(SKEY, list) && list.length > 1) list.pop();   // drop oldest if storage full
+    return true;
+  }
+  function renderSaved() {
+    const list = store.get(SKEY, []), box = $('savedList'); box.innerHTML = '';
+    $('savedEmpty').hidden = list.length > 0;
+    list.forEach(it => {
+      const d = document.createElement('div'); d.className = 'sitem';
+      d.innerHTML = (it.thumb ? `<img alt="" src="${it.thumb}">` : '') +
+        `<div class="meta"><span class="pill">${it.type}</span><b></b><span class="small">${it.date}</span><pre></pre>
+         <div class="row"><button type="button" data-a="copy">Copy</button><button type="button" data-a="share">Share</button><button type="button" data-a="del">Delete</button></div></div>`;
+      d.querySelector('b').textContent = it.title; d.querySelector('pre').textContent = it.text;
+      d.querySelector('[data-a=copy]').onclick = e => navigator.clipboard.writeText(it.text).then(() => e.target.textContent = 'Copied', () => {});
+      d.querySelector('[data-a=share]').onclick = () => navigator.share ? navigator.share({ title: it.title, text: it.text }).catch(() => {}) : null;
+      d.querySelector('[data-a=del]').onclick = () => { store.set(SKEY, store.get(SKEY, []).filter(x => x.id !== it.id)); renderSaved(); };
+      box.appendChild(d);
+    });
+  }
+  function renderRecent() {
+    const list = store.get(SKEY, []).slice(0, 3);
+    $('recent').innerHTML = list.length ? list.map(i => `<div><span class="pill">${i.type}</span> ${i.title.replace(/</g, '&lt;')} <span class="small">&middot; ${i.date}</span></div>`).join('') : 'Nothing saved yet. Use Save in any tool.';
+  }
+  let clearArmed = false;
+  $('clearAll').onclick = () => {
+    if (!clearArmed) { clearArmed = true; $('clearConfirm').hidden = false; setTimeout(() => { clearArmed = false; $('clearConfirm').hidden = true; }, 4000); return; }
+    store.set(SKEY, []); clearArmed = false; $('clearConfirm').hidden = true; renderSaved();
+  };
+  // photo ruler save hook
+  window.anprSavePhoto = () => {
+    const cv = $('cv'), t = document.createElement('canvas'), w = 360, h = Math.round(w * cv.height / cv.width);
+    t.width = w; t.height = h; t.getContext('2d').drawImage(cv, 0, 0, w, h);
+    addSaved({ type: 'photo', title: 'Photo measurements', text: $('csv').value, thumb: t.toDataURL('image/jpeg', .7) });
+  };
+
+  // ---------------- camera ----------------
+  let stream = null, beta = null, base = null, camN = 0;
+  const camRows = [];
+  function onOri(e) { if (e.beta == null) return; beta = e.beta; liveCam(); }
+  const depression = () => 90 - beta;   // degrees below horizontal (phone upright = 0)
+  function distAt(b) { const th = (90 - b) * Math.PI / 180; return th > 0.01 ? (+$('camH').value || 1500) / Math.tan(th) : null; }
+  function liveCam() {
+    $('tilt').textContent = beta == null ? '--' : (depression() >= 0 ? depression().toFixed(1) + '° down' : (-depression()).toFixed(1) + '° up');
+    const d = beta == null ? null : distAt(beta); $('liveD').textContent = d && d < 60000 ? fmt(d) : '--';
+  }
+  async function startCam() {
+    try {
+      if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) await DeviceOrientationEvent.requestPermission();
+    } catch (e) {}
+    window.addEventListener('deviceorientation', onOri);
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      $('video').srcObject = stream; await $('video').play(); $('camOff').hidden = true;
+    } catch (e) {
+      $('camOff').querySelector('p').textContent = 'Camera not available here. Open the installed app over https and allow camera access. Tilt readings still work if your phone has a sensor.';
+    }
+    setTimeout(() => { if (beta == null) $('tilt').textContent = 'no sensor'; }, 1500);
+  }
+  function stopCam() { if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; window.removeEventListener('deviceorientation', onOri); $('camOff').hidden = false; }
+  $('camStart').onclick = startCam;
+  $('camH').addEventListener('input', liveCam);
+  function camKV() {
+    $('camKV').innerHTML = `<dt>Distance to base</dt><dd>${base ? fmt(base.d) : '--'}</dd><dt>Height of top</dt><dd>${base && base.top != null ? fmt(base.top) : '--'}</dd>`;
+  }
+  $('markBase').onclick = () => {
+    if (beta == null) { $('tilt').textContent = 'start camera'; return; }
+    const d = distAt(beta); if (!d) { $('liveD').textContent = 'aim lower'; return; }
+    base = { d, top: null }; camKV();
+    camN++; camRows.push({ label: 'Item ' + camN, d, h: null }); camTable();
+  };
+  $('markTop').onclick = () => {
+    if (!base || beta == null) return;
+    const phi = (beta - 90) * Math.PI / 180;                       // elevation of line of sight
+    base.top = (+$('camH').value || 1500) + base.d * Math.tan(phi);
+    camRows[camRows.length - 1].h = base.top; camKV(); camTable();
+  };
+  function camTable() {
+    const tb = $('camList'); tb.innerHTML = '';
+    camRows.forEach((r, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td><input type="text" id="camLab${i}" aria-label="Item name"></td><td class="num">${fmt(r.d)}</td><td class="num">${r.h == null ? '-' : fmt(r.h)}</td><td><button type="button">Delete</button></td>`;
+      const inp = tr.querySelector('input'); inp.value = r.label; inp.oninput = () => r.label = inp.value;
+      tr.querySelector('button').onclick = () => { camRows.splice(i, 1); camTable(); };
+      tb.appendChild(tr);
+    });
+  }
+  $('camSave').onclick = () => {
+    if (!camRows.length) return;
+    const text = ['Item,Distance (mm),Height (mm)', `Camera height,${$('camH').value},`].concat(camRows.map(r => `${r.label.replace(/,/g, ' ')},${Math.round(r.d)},${r.h == null ? '' : Math.round(r.h)}`)).join('\n');
+    addSaved({ type: 'camera', title: 'Camera readings (' + camRows.length + ')', text }); $('camSave').textContent = 'Saved';
+    setTimeout(() => $('camSave').textContent = 'Save readings', 1500);
+  };
+
+  // ---------------- plan ----------------
+  const pcv = $('pcv'), pc = pcv.getContext('2d');
+  const P = { pts: [], closed: false, len: {}, sel: -1, v: { s: 0.06, ox: 40, oy: 40 } };   // pts in mm
+  function pResize() { const r = pcv.getBoundingClientRect(), d = devicePixelRatio || 1; pcv.width = r.width * d; pcv.height = r.height * d; pc.setTransform(d, 0, 0, d, 0, 0); pDraw(); }
+  const pScr = p => [p[0] * P.v.s + P.v.ox, p[1] * P.v.s + P.v.oy];
+  const pMM = (x, y) => [(x - P.v.ox) / P.v.s, (y - P.v.oy) / P.v.s];
+  const nWalls = () => P.closed ? P.pts.length : Math.max(0, P.pts.length - 1);
+  const wallEnds = i => [P.pts[i], P.pts[(i + 1) % P.pts.length]];
+  const wlen = i => { const [a, b] = wallEnds(i); return Math.hypot(b[0] - a[0], b[1] - a[1]); };
+  function pDraw() {
+    const r = pcv.getBoundingClientRect(); pc.fillStyle = css('--panel'); pc.fillRect(0, 0, r.width, r.height);
+    // grid 500 mm
+    const g = 500 * P.v.s; if (g > 6) {
+      pc.strokeStyle = css('--line'); pc.lineWidth = 1; pc.beginPath();
+      for (let x = P.v.ox % g; x < r.width; x += g) { pc.moveTo(x, 0); pc.lineTo(x, r.height); }
+      for (let y = P.v.oy % g; y < r.height; y += g) { pc.moveTo(0, y); pc.lineTo(r.width, y); }
+      pc.stroke();
+    }
+    pc.fillStyle = css('--muted'); pc.font = '12px ' + css('--f-num'); pc.fillText('grid 500 mm', 8, r.height - 8);
+    if (!P.pts.length) { pc.fillStyle = css('--muted'); pc.font = '15px ' + css('--f-ui'); pc.fillText('Tap to place the first corner', 16, 28); return; }
+    if (P.closed) {
+      pc.beginPath(); P.pts.forEach((p, i) => { const q = pScr(p); i ? pc.lineTo(...q) : pc.moveTo(...q); }); pc.closePath();
+      pc.fillStyle = 'rgba(196,106,43,.10)'; pc.fill();
+    }
+    for (let i = 0; i < nWalls(); i++) {
+      const [a, b] = wallEnds(i).map(pScr), set = P.len[i] != null;
+      pc.lineWidth = i === P.sel ? 7 : 5; pc.strokeStyle = i === P.sel ? css('--accent') : css('--navy');
+      pc.beginPath(); pc.moveTo(...a); pc.lineTo(...b); pc.stroke();
+      const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, lab = `W${i + 1} ${set ? fmt(P.len[i]) : '~' + fmt(wlen(i))}`;
+      pc.font = '600 12px ' + css('--f-num'); const w = pc.measureText(lab).width + 10;
+      pc.fillStyle = set ? css('--cal') : css('--muted'); pc.beginPath(); pc.roundRect(mx - w / 2, my - 10, w, 20, 4); pc.fill();
+      pc.fillStyle = '#fff'; pc.textAlign = 'center'; pc.fillText(lab, mx, my + 4); pc.textAlign = 'left';
+    }
+    P.pts.forEach((p, i) => { const [x, y] = pScr(p); pc.beginPath(); pc.arc(x, y, i === 0 && !P.closed ? 9 : 5, 0, 7); pc.fillStyle = i === 0 ? css('--accent') : css('--navy'); pc.fill(); });
+  }
+  function pFit() {
+    if (P.pts.length < 2) { P.v = { s: 0.06, ox: 40, oy: 40 }; pDraw(); return; }
+    const xs = P.pts.map(p => p[0]), ys = P.pts.map(p => p[1]), r = pcv.getBoundingClientRect();
+    const w = Math.max(...xs) - Math.min(...xs) || 1000, h = Math.max(...ys) - Math.min(...ys) || 1000;
+    const s = Math.min((r.width - 80) / w, (r.height - 80) / h);
+    P.v = { s, ox: 40 - Math.min(...xs) * s + (r.width - 80 - w * s) / 2, oy: 40 - Math.min(...ys) * s + (r.height - 80 - h * s) / 2 }; pDraw();
+  }
+  function segHit(x, y) {
+    for (let i = 0; i < nWalls(); i++) {
+      const [a, b] = wallEnds(i).map(pScr), dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy;
+      const t = L ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / L)) : 0;
+      if (Math.hypot(x - (a[0] + t * dx), y - (a[1] + t * dy)) < 14) return i;
+    }
+    return -1;
+  }
+  let pDown = null;
+  pcv.addEventListener('pointerdown', e => { const r = pcv.getBoundingClientRect(); pDown = { x: e.clientX - r.left, y: e.clientY - r.top, ox: P.v.ox, oy: P.v.oy, moved: false }; pcv.setPointerCapture(e.pointerId); });
+  pcv.addEventListener('pointermove', e => {
+    if (!pDown) return; const r = pcv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    if (Math.hypot(x - pDown.x, y - pDown.y) > 8) pDown.moved = true;
+    if (pDown.moved) { P.v.ox = pDown.ox + x - pDown.x; P.v.oy = pDown.oy + y - pDown.y; pDraw(); }
+  });
+  pcv.addEventListener('pointerup', e => {
+    if (!pDown) return; const d = pDown; pDown = null; if (d.moved) return;
+    const x = d.x, y = d.y;
+    if (P.pts.length > 2 && !P.closed) { const f = pScr(P.pts[0]); if (Math.hypot(x - f[0], y - f[1]) < 16) { P.closed = true; squareClose(); pUpdate(); return; } }
+    const hit = segHit(x, y);
+    if (hit >= 0) { P.sel = hit; $('wallForm').hidden = false; $('wallName').textContent = 'W' + (hit + 1); $('wallLen').value = Math.round(P.len[hit] ?? wlen(hit)); $('wallLen').focus(); pDraw(); return; }
+    if (P.closed) return;
+    let p = pMM(x, y);
+    if (P.pts.length) {                                   // snap square to previous corner, round to 100 mm
+      const q = P.pts[P.pts.length - 1];
+      p = Math.abs(p[0] - q[0]) >= Math.abs(p[1] - q[1]) ? [q[0] + Math.round((p[0] - q[0]) / 100) * 100, q[1]] : [q[0], q[1] + Math.round((p[1] - q[1]) / 100) * 100];
+      if (p[0] === q[0] && p[1] === q[1]) return;
+    }
+    P.pts.push(p); pUpdate();
+  });
+  function squareClose() {                                // add a corner so the room closes square
+    const n = P.pts.length, a = P.pts[n - 1], f = P.pts[0], prev = P.pts[n - 2];
+    if (a[0] === f[0] || a[1] === f[1]) return;
+    P.pts.push(prev[1] === a[1] ? [a[0], f[1]] : [f[0], a[1]]);
+  }
+  $('wallSet').onclick = () => {
+    const i = P.sel, L = +$('wallLen').value; if (i < 0 || !(L > 0)) return;
+    const [a, b] = wallEnds(i), cur = wlen(i), ux = (b[0] - a[0]) / cur, uy = (b[1] - a[1]) / cur;
+    const dx = ux * L - (b[0] - a[0]), dy = uy * L - (b[1] - a[1]);
+    const end = P.closed && i === P.pts.length - 1 ? -1 : i + 1;   // closing wall: don't move first point
+    if (end > 0) for (let k = end; k < P.pts.length; k++) { P.pts[k] = [P.pts[k][0] + dx, P.pts[k][1] + dy]; }
+    P.len[i] = L; P.sel = -1; $('wallForm').hidden = true; pUpdate();
+  };
+  function area() { let s = 0; for (let i = 0; i < P.pts.length; i++) { const [a, b] = wallEnds(i); s += a[0] * b[1] - b[0] * a[1]; } return Math.abs(s) / 2; }
+  function pUpdate() {
+    pDraw();
+    const n = nWalls(); let per = 0; const tb = $('wallList'); tb.innerHTML = '';
+    for (let i = 0; i < n; i++) {
+      const L = wlen(i); per += L;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>W${i + 1}</td><td class="num">${fmt(L)}</td><td class="small">${P.len[i] != null ? 'measured' : 'sketched - tap to enter'}</td>`;
+      tb.appendChild(tr);
+    }
+    const open = !P.closed ? 'not closed yet' : (Object.keys(P.len).length < n ? `${n - Object.keys(P.len).length} wall(s) still sketched` : 'all walls measured');
+    $('planKV').innerHTML = `<dt>Walls</dt><dd>${n}</dd><dt>Perimeter</dt><dd>${fmt(per)}</dd><dt>Floor area</dt><dd>${P.closed ? (area() / 1e6).toFixed(2) + ' m²' : '--'}</dd><dt>Status</dt><dd>${open}</dd>`;
+  }
+  function planText() {
+    const n = nWalls(), lines = [`Plan: ${$('planName').value}`];
+    for (let i = 0; i < n; i++) lines.push(`W${i + 1},${Math.round(wlen(i))} mm,${P.len[i] != null ? 'measured' : 'sketched'}`);
+    if (P.closed) lines.push(`Area,${(area() / 1e6).toFixed(2)} m2`);
+    return lines.join('\n');
+  }
+  $('pUndo').onclick = () => { if (P.closed) P.closed = false; else P.pts.pop(); Object.keys(P.len).forEach(k => { if (+k >= nWalls()) delete P.len[k]; }); P.sel = -1; $('wallForm').hidden = true; pUpdate(); };
+  $('pClear').onclick = () => { P.pts = []; P.closed = false; P.len = {}; P.sel = -1; $('wallForm').hidden = true; pUpdate(); };
+  $('pFit').onclick = pFit;
+  $('pIn').onclick = () => { P.v.s *= 1.3; pDraw(); }; $('pOut').onclick = () => { P.v.s /= 1.3; pDraw(); };
+  $('pCopy').onclick = () => navigator.clipboard.writeText(planText()).then(() => $('pMsg').textContent = 'Copied.', () => $('pMsg').textContent = 'Copy not available here.');
+  $('pSave').onclick = () => {
+    if (P.pts.length < 2) return;
+    const t = document.createElement('canvas'), r = pcv.getBoundingClientRect(); t.width = 360; t.height = Math.round(360 * r.height / r.width);
+    t.getContext('2d').drawImage(pcv, 0, 0, t.width, t.height);
+    addSaved({ type: 'plan', title: $('planName').value || 'Room plan', text: planText(), thumb: t.toDataURL('image/jpeg', .7) });
+    $('pMsg').textContent = 'Saved.';
+  };
+  // example room so the tool opens in a working state
+  P.pts = [[0, 0], [4800, 0], [4800, 7023], [0, 7023]]; P.closed = true; P.len = { 0: 4800, 1: 7023 };
+
+  // ---------------- on-screen ruler ----------------
+  const rcv = $('rcv'), rc = rcv.getContext('2d');
+  const R = { pxmm: store.get('anpr.pxmm', null), inch: false, mark: 60 };
+  function rResize() { const r = rcv.getBoundingClientRect(), d = devicePixelRatio || 1; rcv.width = r.width * d; rcv.height = r.height * d; rc.setTransform(d, 0, 0, d, 0, 0); rDraw(); }
+  function cardUI() {
+    const pxmm = +$('cardSlider').value; R.pxmm = pxmm; store.set('anpr.pxmm', pxmm);
+    $('cardBox').style.width = (85.6 * pxmm) + 'px'; $('cardBox').style.height = (53.98 * pxmm) + 'px';
+    $('cardBox').style.maxWidth = '100%';
+    $('pxmm').textContent = `${pxmm.toFixed(2)} px per mm`; rDraw();
+  }
+  function rDraw() {
+    const r = rcv.getBoundingClientRect(); if (!r.width) return; const k = R.pxmm || 3.78;
+    rc.fillStyle = css('--panel'); rc.fillRect(0, 0, r.width, r.height);
+    rc.strokeStyle = css('--ink'); rc.fillStyle = css('--ink'); rc.lineWidth = 1; rc.font = '12px ' + css('--f-num');
+    if (!R.inch) {
+      for (let mm = 0; mm * k < r.height; mm++) {
+        const y = mm * k + 0.5, L = mm % 10 === 0 ? 34 : mm % 5 === 0 ? 22 : 12;
+        rc.beginPath(); rc.moveTo(0, y); rc.lineTo(L, y); rc.stroke();
+        if (mm % 10 === 0 && mm) rc.fillText(mm / 10 + ' cm', 40, y + 4);
+      }
+    } else {
+      const pin = k * 25.4;
+      for (let t = 0; t * pin / 16 < r.height; t++) {
+        const y = t * pin / 16 + 0.5, L = t % 16 === 0 ? 34 : t % 8 === 0 ? 26 : t % 4 === 0 ? 18 : 10;
+        rc.beginPath(); rc.moveTo(0, y); rc.lineTo(L, y); rc.stroke();
+        if (t % 16 === 0 && t) rc.fillText(t / 16 + ' in', 40, y + 4);
+      }
+    }
+    const y = R.mark; rc.strokeStyle = css('--accent'); rc.lineWidth = 2; rc.beginPath(); rc.moveTo(0, y); rc.lineTo(r.width, y); rc.stroke();
+    rc.fillStyle = css('--accent'); rc.beginPath(); rc.roundRect(r.width - 150, y - 16, 140, 32, 6); rc.fill();
+    rc.fillStyle = '#fff'; rc.font = '600 15px ' + css('--f-num');
+    rc.fillText(R.inch ? (y / k / 25.4).toFixed(2) + ' in' : (y / k).toFixed(1) + ' mm', r.width - 140, y + 5);
+  }
+  let rDrag = false;
+  rcv.addEventListener('pointerdown', e => { rDrag = true; rcv.setPointerCapture(e.pointerId); R.mark = e.clientY - rcv.getBoundingClientRect().top; rDraw(); });
+  rcv.addEventListener('pointermove', e => { if (!rDrag) return; R.mark = Math.max(0, e.clientY - rcv.getBoundingClientRect().top); rDraw(); });
+  rcv.addEventListener('pointerup', () => rDrag = false);
+  $('cardSlider').addEventListener('input', cardUI);
+  $('uMM').onclick = () => { R.inch = false; $('uMM').classList.add('on'); $('uIN').classList.remove('on'); rDraw(); };
+  $('uIN').onclick = () => { R.inch = true; $('uIN').classList.add('on'); $('uMM').classList.remove('on'); rDraw(); };
+  if (R.pxmm) $('cardSlider').value = R.pxmm;
+
+  window.addEventListener('resize', () => { if (current === 'plan') pResize(); if (current === 'ruler') rResize(); });
+  cardUI(); renderRecent(); go('home'); pUpdate();
+})();
+</script>
 </body>
 </html>

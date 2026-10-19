@@ -1073,9 +1073,24 @@ input[type=range]{width:100%;accent-color:var(--accent)}
     Wv.y = 0; const W = Wv.length(), H = Math.abs(d.y - c.y);
     return L * W * H;
   }
+  function textSprite(text, bg = '#1F7A5A') {                    // 3D text label (used when the phone has no screen overlay)
+    const c = document.createElement('canvas'), g = c.getContext('2d'); c.width = 512; c.height = 128;
+    g.font = 'bold 56px sans-serif'; const w = Math.min(500, g.measureText(text).width + 40);
+    g.fillStyle = bg; g.beginPath(); g.roundRect((512 - w) / 2, 14, w, 100, 22); g.fill();
+    g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 66);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true }));
+    sp.scale.set(0.16, 0.04, 1); sp.renderOrder = 3; return sp;
+  }
   function arLabel(p, text) {                                    // label pinned to a 3D point
+    if (!AR.overlay) { const sp = textSprite(text); sp.position.copy(p).add(V(0, 0.04, 0)); AR.scene.add(sp); AR.objs.push(sp); return; }
     const el = document.createElement('div'); el.className = 'ar-lab'; el.textContent = text; $('arLabels').appendChild(el);
     AR.labels.push({ p: p.clone(), el });
+  }
+  let liveSprite = null, liveText = '';
+  function updateLiveSprite(text) {                               // floating live reading above the ring (no-overlay mode)
+    if (AR.overlay || !AR.scene) return;
+    if (text !== liveText) { if (liveSprite) AR.scene.remove(liveSprite); liveSprite = text ? textSprite(text, '#C46A2B') : null; liveText = text; if (liveSprite) AR.scene.add(liveSprite); }
+    if (liveSprite) { liveSprite.visible = !!AR.cur; if (AR.cur) liveSprite.position.copy(AR.cur).add(V(0, 0.09, 0)); }
   }
   function placeLabels() {
     const xrCam = AR.renderer.xr.getCamera(AR.cam), c0 = xrCam.cameras && xrCam.cameras[0] ? xrCam.cameras[0] : xrCam;
@@ -1090,9 +1105,13 @@ input[type=range]{width:100%;accent-color:var(--accent)}
   function arAdd() {
     if (!AR.cur) { $('arLiveLab').textContent = 'No surface yet - move the phone slowly'; return; }
     const p = AR.cur.clone(), P = AR.pts; navigator.vibrate && navigator.vibrate(20);
+    if (!AR.overlay && AR.mode === 'area' && P.length >= 3 && p.distanceTo(P[0]) < 0.06) { finishShape(false); return; }   // tap first point to close
     if (P.length) arBar(P[P.length - 1], p);
     arDot(p); P.push(p);
-    if (AR.mode === 'dist' && P.length >= 2) arLabel(P[P.length - 2].clone().add(p).multiplyScalar(0.5), fmt(mm(P[P.length - 2].distanceTo(p))));
+    if (AR.mode === 'dist' && P.length >= 2) {
+      const seg = mm(P[P.length - 2].distanceTo(p)); arLabel(P[P.length - 2].clone().add(p).multiplyScalar(0.5), fmt(seg));
+      if (!AR.overlay) record('Length', seg, 'mm', fmt(seg));      // no Finish button: record each segment
+    }
     if (AR.mode === 'height' && P.length === 2) { const h = mm(Math.abs(p.y - P[0].y)); arLabel(p, 'H ' + fmt(h)); record('Height', h, 'mm', fmt(h)); finishShape(true); }
     if (AR.mode === 'angle' && P.length === 3) { const a = angleAt(P[0], P[1], P[2]); arLabel(P[1], a.toFixed(1) + '°'); record('Angle', a, 'deg', a.toFixed(1) + '°'); finishShape(true); }
     if (AR.mode === 'vol' && P.length === 4) {
@@ -1115,16 +1134,34 @@ input[type=range]{width:100%;accent-color:var(--accent)}
   }
   async function arStart() {
     if (typeof THREE === 'undefined') { $('arSupport').textContent = 'AR library did not load - connect to the internet once, then try again.'; return; }
+    // Try the full setup first, then simpler ones: some phones reject the screen overlay or optional features.
+    $('arOverlay').hidden = false;
+    const configs = [
+      { requiredFeatures: ['hit-test'], optionalFeatures: ['dom-overlay'], domOverlay: { root: $('arOverlay') } },
+      { requiredFeatures: ['hit-test'] },
+      { optionalFeatures: ['hit-test', 'dom-overlay'], domOverlay: { root: $('arOverlay') } },
+      { optionalFeatures: ['hit-test'] }];
+    let sess = null; const errs = [];
+    for (const cfg of configs) { try { sess = await navigator.xr.requestSession('immersive-ar', cfg); break; } catch (e) { errs.push(e.name || String(e)); } }
+    if (!sess) {
+      $('arOverlay').hidden = true;
+      $('arSupport').innerHTML = 'AR could not start on this phone (' + errs[0] + '). Fixes to try: <b>1.</b> Install or update <b>Google Play Services for AR</b> in the Play Store. <b>2.</b> Update Chrome. <b>3.</b> Allow Camera for this site in Chrome settings. If it still fails, your phone model isn\'t ARCore certified: use Photo ruler (most accurate) or Tilt camera.';
+      return;
+    }
     try {
-      const sess = await navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['hit-test'], optionalFeatures: ['dom-overlay'], domOverlay: { root: $('arOverlay') } });
-      AR.sess = sess; $('arOverlay').hidden = false;
+      AR.sess = sess; AR.overlay = !!sess.domOverlayState;
+      if (!AR.overlay) $('arOverlay').hidden = true;
+      sess.addEventListener('select', () => { if (!AR.overlay) arAdd(); });
       const r = new THREE.WebGLRenderer({ alpha: true, antialias: true }); r.setPixelRatio(devicePixelRatio); r.setSize(innerWidth, innerHeight);
       r.xr.enabled = true; r.xr.setReferenceSpaceType('local'); r.domElement.className = 'ar-canvas'; document.body.appendChild(r.domElement);
       AR.renderer = r; AR.scene = new THREE.Scene(); AR.cam = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.01, 50);
       const ring = new THREE.Mesh(new THREE.RingGeometry(0.04, 0.055, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xC46A2B }));
       ring.matrixAutoUpdate = false; ring.visible = false; AR.scene.add(ring); AR.reticle = ring;
       await r.xr.setSession(sess);
-      const viewer = await sess.requestReferenceSpace('viewer'); AR.hit = await sess.requestHitTestSource({ space: viewer });
+      const viewer = await sess.requestReferenceSpace('viewer');
+      try { AR.hit = await sess.requestHitTestSource({ space: viewer }); } catch (e) { AR.hit = null; }
+      if (!AR.hit) { sess.end(); $('arSupport').textContent = 'This phone started AR but cannot detect surfaces (no hit-test support). Update Google Play Services for AR and Chrome, or use Photo ruler.'; return; }
+      $('arSupport').textContent = AR.overlay ? 'AR running.' : 'AR running in simple mode: tap anywhere on the screen to add a point. In Area mode, tap the first point again to close. Press Back to exit.';
       sess.addEventListener('end', arEnded);
       r.setAnimationLoop((t, frame) => {
         if (frame && AR.hit) {
@@ -1134,14 +1171,14 @@ input[type=range]{width:100%;accent-color:var(--accent)}
         }
         if (AR.rubber) { AR.scene.remove(AR.rubber); AR.rubber = null; }
         if (AR.cur && AR.pts.length) AR.rubber = arBar(AR.pts[AR.pts.length - 1], AR.cur, 0xC46A2B, false);
-        const [lab, val] = liveValue(); $('arLiveLab').textContent = lab; $('arLive').textContent = val || '--';
+        const [lab, val] = liveValue(); $('arLiveLab').textContent = lab; $('arLive').textContent = val || '--'; updateLiveSprite(val || '');
         r.render(AR.scene, AR.cam); placeLabels();
       });
-    } catch (e) { $('arSupport').textContent = 'Could not start AR: ' + (e.message || e) + '. Check camera permission for Chrome.'; arEnded(); }
+    } catch (e) { $('arSupport').textContent = 'AR stopped: ' + (e.message || e) + '. Try again, or use Photo ruler.'; if (AR.sess) { try { AR.sess.end(); } catch (x) {} } arEnded(); }
   }
   function arEnded() {
     if (AR.renderer) { AR.renderer.setAnimationLoop(null); AR.renderer.domElement.remove(); AR.renderer.dispose(); }
-    AR.sess = null; AR.renderer = null; AR.hit = null; AR.cur = null; arClearPts(); AR.scene = null; $('arOverlay').hidden = true;
+    AR.sess = null; AR.renderer = null; AR.hit = null; AR.cur = null; arClearPts(); AR.scene = null; liveSprite = null; liveText = ''; $('arOverlay').hidden = true;
   }
   $('arStart').onclick = arStart;
   $('arAdd').onclick = arAdd;

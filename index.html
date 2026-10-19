@@ -122,6 +122,21 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .livebig b{font-family:var(--f-num);font-size:1.6rem;color:var(--accent);font-variant-numeric:tabular-nums}
 .levelwarn{position:absolute;top:84px;left:50%;transform:translateX(-50%);background:var(--warn);color:#fff;font-weight:700;font-size:.85rem;padding:4px 10px;border-radius:6px}
 button.big{min-height:52px;padding:10px 26px;font-size:1.05rem}
+.acc{display:inline-block;font-family:var(--f-num);font-size:.72rem;font-weight:600;padding:1px 6px;border-radius:999px;margin-top:2px;white-space:nowrap}
+.acc.ok{background:#DDF2E7;color:#14603F}.acc.mid{background:#FBEBD3;color:#8A4B0F}.acc.bad{background:#F8DCD5;color:#9A2A14}
+.tile.featured{grid-column:1/-1;min-height:0;border-color:var(--accent)}
+#arOverlay{position:fixed;inset:0;z-index:100;pointer-events:none;font-family:var(--f-ui)}
+#arOverlay button{pointer-events:auto}
+.ar-canvas{position:fixed;inset:0;z-index:90}
+.ar-top{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);background:rgba(15,21,27,.82);color:#fff;border-radius:10px;padding:6px 14px;text-align:center;display:flex;flex-direction:column;min-width:200px}
+.ar-top small{font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;opacity:.8}
+.ar-top b{font-family:var(--f-num);font-size:1.5rem;color:#F0A56E}
+.ar-cross{position:absolute;left:50%;top:50%;width:28px;height:28px;margin:-14px 0 0 -14px;border:2px solid #F0A56E;border-radius:50%;box-shadow:0 0 0 2px rgba(0,0,0,.35)}
+.ar-bar{position:absolute;left:0;right:0;bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center;gap:8px;flex-wrap:wrap;padding:0 12px}
+.ar-bar button{background:rgba(255,255,255,.92);color:#16212C;border:0;min-height:50px;font-size:1rem}
+.ar-bar button.primary{background:#C46A2B;color:#fff;padding:10px 24px}
+.ar-lab{position:absolute;left:0;top:0;background:#1F7A5A;color:#fff;font-family:var(--f-num);font-weight:700;font-size:14px;padding:4px 9px;border-radius:6px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+button:disabled{opacity:.45;cursor:not-allowed}
 /* plan */
 .plancv{width:100%;height:58vh;min-height:320px;display:block}
 .wallform{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
@@ -154,12 +169,16 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 <section class="screen" id="scr-home">
   <div class="homehead">
     <h1>Measure the building on your own</h1>
-    <p class="sub">Four tools for working solo on site. Measurements stay on this phone until you share them.</p>
+    <p class="sub">Five tools for working solo on site. Measurements stay on this phone until you share them.</p>
   </div>
   <div class="home-grid">
+    <button class="tile featured" type="button" data-go="ar">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4l17 10v20L24 44 7 34V14z"/><path d="M7 14l17 10 17-10M24 24v20"/></svg>
+      <b>AR measure</b><span>Tap points on real floors and walls: distance, height, area, angle and volume. Works however you hold the phone (ARCore phones).</span>
+    </button>
     <button class="tile" type="button" data-go="camera">
       <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="14" width="36" height="24" rx="4"/><circle cx="24" cy="26" r="7"/><path d="M17 14l3-5h8l3 5"/><path d="M2 26h4M42 26h4"/></svg>
-      <b>Camera</b><span>Aim at the floor point and top: get distance and height from the tilt sensor.</span>
+      <b>Tilt camera</b><span>Live view with pinned readings from the tilt sensor. Quick checks on any phone.</span>
     </button>
     <button class="tile" type="button" data-go="plan">
       <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M6 8h36v32H6z"/><path d="M24 8v14M24 30v10M6 24h12M32 24h10"/><path d="M24 22a6 6 0 0 1 6 6"/></svg>
@@ -198,6 +217,12 @@ input[type=range]{width:100%;accent-color:var(--accent)}
   <div class="row" style="justify-content:center">
     <button id="camMark" type="button" class="primary big">Mark point</button>
     <button id="camReset" type="button">Reset</button>
+    <button id="camSnap" type="button">Snapshot</button>
+  </div>
+  <div class="row" style="justify-content:center">
+    <label for="noteVal" class="small" style="display:flex;flex-direction:column;gap:3px">Insert at cross<input id="noteVal" type="text" placeholder="e.g. W1 1200 x 1400" style="width:200px"></label>
+    <button id="camNote" type="button">Pin on view</button>
+    <button id="camClearPins" type="button">Clear pins</button>
   </div>
   <p class="small" id="camHelp" style="text-align:center;margin:0">Aim the cross at a point on the floor. The distance updates live.</p>
 
@@ -220,6 +245,36 @@ input[type=range]{width:100%;accent-color:var(--accent)}
       <button id="camCal" type="button">Calibrate height</button>
     </div>
     <p class="small" style="margin:0">Keep the phone at the same height for every reading, stand on level ground, and hold it upright. Typical accuracy is &plusmn;3&ndash;5% within 5 m; width uses the compass and is less accurate. Check one taped item first.</p>
+  </div>
+</section>
+
+<section class="screen" id="scr-ar" hidden>
+  <div class="panel">
+    <h2>AR measure</h2>
+    <p class="small" style="margin:0">Uses Google ARCore to find real floors and walls in 3D, so it doesn't depend on how you hold the phone. Move the phone slowly over the surface until the ring appears, then tap <b>Add point</b>.</p>
+    <div class="seg" role="group" aria-label="AR mode" style="flex-wrap:wrap">
+      <button type="button" data-arm="dist" class="on">Distance</button><button type="button" data-arm="height">Height</button><button type="button" data-arm="area">Area</button><button type="button" data-arm="angle">Angle</button><button type="button" data-arm="vol">Volume</button>
+    </div>
+    <p class="small" id="arModeHelp" style="margin:0"></p>
+    <div class="row"><button id="arStart" type="button" class="primary big">Start AR</button><span class="small" id="arSupport">Checking whether this phone supports AR...</span></div>
+  </div>
+  <div class="panel">
+    <h2>AR results</h2>
+    <div style="overflow-x:auto"><table><thead><tr><th>Item</th><th>Type</th><th style="text-align:right">Value</th><th></th></tr></thead><tbody id="arList"></tbody></table></div>
+    <p class="empty" id="arEmpty">No AR measurements yet.</p>
+    <div class="row"><button id="arSave" type="button">Save results</button><button id="arCopy" type="button">Copy</button><span class="small" id="arMsg"></span></div>
+    <p class="small">Tips: good light and textured surfaces help ARCore lock on (plain painted walls are harder). Walk the phone slowly. Typical accuracy is about &plusmn;1&ndash;2% at short range and drifts on long runs. For overall building lengths use a tape or laser.</p>
+  </div>
+  <div id="arOverlay" hidden>
+    <div class="ar-top"><small id="arLiveLab">Find a surface</small><b id="arLive">--</b></div>
+    <div id="arLabels"></div>
+    <div class="ar-cross" aria-hidden="true"></div>
+    <div class="ar-bar">
+      <button id="arAdd" type="button" class="primary">Add point</button>
+      <button id="arUndo" type="button">Undo</button>
+      <button id="arDone" type="button">Finish</button>
+      <button id="arExit" type="button">Exit</button>
+    </div>
   </div>
 </section>
 
@@ -330,12 +385,21 @@ input[type=range]{width:100%;accent-color:var(--accent)}
         <li><b>Long runs: tape on your own.</b> Hook the tape over a screw, nail or clamp at one end, or use the post spacing: measure one bay, then count bays.</li>
         <li><b>Check yourself.</b> Measure one item twice from two photos. Differences above 1&ndash;2% mean the photo wasn't square: retake it.</li>
       </ol>
-      <p class="small">Photo measurements suit openings, heights and spacings to about &plusmn;1&ndash;2%. Use a tape or laser for overall building sizes and anything structural.</p>
+      <h2>Getting 99% accuracy</h2>
+      <ol class="tips">
+        <li><b>Use Reference rectangle,</b> not a line. It corrects for camera tilt and angle, so you don't need to stand straight.</li>
+        <li><b>Make the reference big:</b> a whole door frame or a 2 m x 1 m rectangle marked with tape, taped once. The bigger it is in the photo, the better.</li>
+        <li><b>Measure inside or close to the reference.</b> Reaching far beyond it adds error, and the meter will show that.</li>
+        <li><b>Zoom in before tapping</b> and use the magnifier. Each tap matters.</li>
+        <li><b>Watch the badge:</b> green means 99% or better, amber 97&ndash;99%, red below 97%: retake or use a bigger reference.</li>
+      </ol>
+      <p class="small">Everything you measure must be on the same flat surface as the reference. The badge covers tapping error, not a reference that was taped wrong.</p>
     </section>
   </div>
 </div>
 
 </section>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (() => {
   const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
@@ -373,6 +437,30 @@ input[type=range]{width:100%;accent-color:var(--accent)}
     if (S.cal.type === 'line') { const px = dist(S.cal.a, S.cal.b); return px > 0 ? dist(a, b) * S.cal.mm / px : null; }
     if (S.cal.type === 'rect' && S.cal.H) return dist(applyH(S.cal.H, a), applyH(S.cal.H, b));
     return null;
+  }
+  // Likely error of a measurement: re-run it with every tapped point nudged by a typical
+  // tapping error (1.2 image px) and take the spread. Deterministic so it doesn't flicker.
+  function uncertainty(m) {
+    if (!S.cal) return null;
+    let seed = 12345; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    const g = () => { const u = Math.max(1e-9, rnd()), v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(6.2832 * v); };
+    const sig = 1.2, j = p => [p[0] + g() * sig, p[1] + g() * sig], out = [];
+    for (let k = 0; k < 120; k++) {
+      let L;
+      if (S.cal.type === 'line') { const ca = j(S.cal.a), cb = j(S.cal.b), px = dist(ca, cb); L = dist(j(m.a), j(m.b)) * S.cal.mm / px; }
+      else { const H = solveH(S.cal.p.map(j), [[0, 0], [S.cal.w, 0], [S.cal.w, S.cal.h], [0, S.cal.h]]); if (!H) continue; L = dist(applyH(H, j(m.a)), applyH(H, j(m.b))); }
+      if (isFinite(L)) out.push(L);
+    }
+    if (out.length < 10) return null;
+    const mean = out.reduce((x, y) => x + y, 0) / out.length;
+    const sd = Math.sqrt(out.reduce((x, y) => x + (y - mean) ** 2, 0) / (out.length - 1));
+    return 2 * sd;                                    // ~95% range
+  }
+  window.accChip = (L, u) => accChip(L, u);
+  function accChip(L, u) {
+    if (L == null || u == null || !L) return '';
+    const pct = 100 * u / L, cls = pct <= 1 ? 'ok' : pct <= 3 ? 'mid' : 'bad';
+    return `<span class="acc ${cls}" title="Likely error range">\u00b1${Math.round(u)} mm \u00b7 ${(100 - pct).toFixed(1)}%</span>`;
   }
 
   // ---------- view ----------
@@ -470,7 +558,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
     const tb = $('list'); tb.innerHTML = '';
     S.meas.forEach((m, i) => {
       const tr = document.createElement('tr'); const L = lengthMM(m.a, m.b);
-      tr.innerHTML = `<td><input type="text" id="lab${m.id}" value="${m.label.replace(/"/g, '&quot;')}" aria-label="Item name"></td><td class="num">${L == null ? '-' : fmt(L)}</td><td><button type="button" data-del="${i}">Delete</button></td>`;
+      const U = uncertainty(m);
+      tr.innerHTML = `<td><input type="text" id="lab${m.id}" value="${m.label.replace(/"/g, '&quot;')}" aria-label="Item name"></td><td class="num">${L == null ? '-' : fmt(L)}<br>${accChip(L, U)}</td><td><button type="button" data-del="${i}">Delete</button></td>`;
       tb.appendChild(tr);
       tr.querySelector('input').addEventListener('input', e => { m.label = e.target.value || ('M' + m.id); draw(); csv(); });
     });
@@ -478,9 +567,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
     $('emptyMsg').hidden = S.meas.length > 0; csv(); hint();
   }
   function csv() {
-    const lines = ['Item,Length (mm)'];
+    const lines = ['Item,Length (mm),Likely error (mm)'];
     if (S.cal) lines.push(S.cal.type === 'line' ? `Reference line,${Math.round(S.cal.mm)}` : `Reference rectangle,${Math.round(S.cal.w)} x ${Math.round(S.cal.h)}`);
-    S.meas.forEach(m => { const L = lengthMM(m.a, m.b); lines.push(`${m.label.replace(/,/g, ' ')},${L == null ? '' : Math.round(L)}`); });
+    S.meas.forEach(m => { const L = lengthMM(m.a, m.b), U = uncertainty(m); lines.push(`${m.label.replace(/,/g, ' ')},${L == null ? '' : Math.round(L)},${U == null ? '' : '+/-' + Math.round(U)}`); });
     $('csv').value = lines.join('\n');
   }
   function setCalLine(a, b) { S.cal = { type: 'line', a, b, mm: +$('refLen').value || 1000 }; }
@@ -565,7 +654,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
     document.body.appendChild(a); a.click(); a.remove(); $('copyMsg').textContent = 'Saved to downloads.';
   };
   // ---------- load photo: shrink to 1600 px so phones don't run out of memory ----------
-  const MAXPX = 1600, SESS = 'anpr.photoSession';
+  const MAXPX = 2400, SESS = 'anpr.photoSession';
   function shrink(src, w, h) {
     const k = Math.min(1, MAXPX / Math.max(w, h)), c = document.createElement('canvas');
     c.width = Math.round(w * k); c.height = Math.round(h * k);
@@ -666,7 +755,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
   };
 
   // ---------------- navigation ----------------
-  const titles = { home: 'AN Photo Ruler', photo: 'Photo ruler', camera: 'Camera measure', plan: 'Room plan', ruler: 'Ruler', saved: 'Saved' };
+  const titles = { home: 'AN Photo Ruler', ar: 'AR measure', photo: 'Photo ruler', camera: 'Tilt camera', plan: 'Room plan', ruler: 'Ruler', saved: 'Saved' };
   let current = 'home';
   function go(name) {
     if (current === 'camera' && name !== 'camera') stopCam();
@@ -729,6 +818,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
   const camHmm = () => +$('camH').value || 1500;
   function onOri(e) {
     if (e.beta == null) return;
+    if (C.cap) C.cap.push(e.beta);
     const k = 0.25;                                             // smoothing
     C.beta = C.beta == null ? e.beta : C.beta + k * (e.beta - C.beta);
     C.gamma = C.gamma + k * ((e.gamma || 0) - C.gamma);
@@ -779,6 +869,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
         }
       }
     }
+    // every saved reading stays pinned on the view
+    C.rows.forEach(rw => { if (rw.pts) drawPin(rw, cx, cy); });
     // crosshair with ring
     oc.lineWidth = 2; oc.strokeStyle = 'rgba(0,0,0,.55)'; oc.beginPath(); oc.arc(cx, cy, 15, 0, 7); oc.stroke();
     oc.strokeStyle = acc; oc.beginPath(); oc.arc(cx, cy, 14, 0, 7); oc.stroke();
@@ -819,17 +911,82 @@ input[type=range]{width:100%;accent-color:var(--accent)}
       W: C.a ? ['Mark second', 'Turn to the second floor point. Width updates live. Tap Mark second.'] : ['Mark first', 'Aim at the first floor point (e.g. one side of a door), tap Mark first.'] }[C.mode];
     $('camMark').textContent = t[0]; $('camHelp').textContent = t[1];
   }
-  function addRow(type, v) { C.n++; C.rows.push({ label: (type === 'Height' ? 'Height ' : type === 'Width' ? 'Width ' : 'Distance ') + C.n, type, v }); camTable(); }
+  function addRow(type, v, u, note, pts) { C.n++; C.rows.push({ label: (type === 'Height' ? 'Height ' : type === 'Width' ? 'Width ' : type === 'Note' ? 'Note ' : 'Distance ') + C.n, type, v, u: u == null ? null : 2 * u, note: note || '', pts: pts || null }); camTable(); }
+  function tag(x, y, text, col) {
+    oc.font = '700 14px ' + css('--f-num'); const w = oc.measureText(text).width + 14;
+    const X = Math.min(Math.max(4, x), ov.getBoundingClientRect().width - w - 4);
+    oc.fillStyle = 'rgba(0,0,0,.35)'; oc.beginPath(); oc.roundRect(X + 1, y - 12, w, 26, 6); oc.fill();
+    oc.fillStyle = col; oc.beginPath(); oc.roundRect(X, y - 13, w, 26, 6); oc.fill();
+    oc.fillStyle = '#fff'; oc.fillText(text, X + 7, y + 5);
+  }
+  function dot(p, col) { oc.beginPath(); oc.arc(p[0], p[1], 8, 0, 7); oc.fillStyle = col; oc.fill(); oc.lineWidth = 3; oc.strokeStyle = '#fff'; oc.stroke(); }
+  function drawPin(rw, cx, cy) {
+    const col = rw.type === 'Note' ? css('--navy') === '#8FB3E0' ? '#3E6BA8' : '#1B365D' : '#1F7A5A';
+    const P = rw.pts.map(project);
+    if (P.some(q => !q)) return;
+    if (P.length === 2) {
+      oc.lineWidth = 6; oc.strokeStyle = 'rgba(255,255,255,.9)'; oc.beginPath(); oc.moveTo(...P[0]); oc.lineTo(...P[1]); oc.stroke();
+      oc.lineWidth = 3; oc.strokeStyle = col; oc.beginPath(); oc.moveTo(...P[0]); oc.lineTo(...P[1]); oc.stroke();
+      P.forEach(q => dot(q, col));
+      tag((P[0][0] + P[1][0]) / 2 + 10, (P[0][1] + P[1][1]) / 2, `${rw.label}: ${fmt(rw.v)}`, col);
+    } else {
+      dot(P[0], col); tag(P[0][0] + 12, P[0][1] - 14, rw.type === 'Note' ? rw.text : `${rw.label}: ${fmt(rw.v)}`, col);
+    }
+  }
+  // Steady capture: average the tilt over ~1.5 s once the phone is still; estimate the error.
+  const SIG_H = 20, SIG_BIAS = 0.4;                           // mm height setting error, deg sensor bias
+  function steady(done) {
+    C.cap = []; const t0 = Date.now(); $('camMark').disabled = true;
+    const tick = () => {
+      const c = C.cap, n = c.length, recent = c.slice(-45);
+      const mean = recent.reduce((x, y) => x + y, 0) / Math.max(1, recent.length);
+      const sd = Math.sqrt(recent.reduce((x, y) => x + (y - mean) ** 2, 0) / Math.max(1, recent.length - 1));
+      const el = Date.now() - t0;
+      $('camHelp').textContent = sd > 0.35 ? 'Hold still...' : 'Capturing...';
+      if ((el > 1500 && recent.length >= 20 && sd <= 0.35) || el > 5000) {
+        C.cap = null; $('camMark').disabled = false; navigator.vibrate && navigator.vibrate(30);
+        done(mean - 90, Math.sqrt(SIG_BIAS ** 2 + (sd / Math.sqrt(Math.max(1, recent.length))) ** 2), sd > 0.35);
+      } else setTimeout(tick, 60);
+    };
+    if (!('ondeviceorientation' in window) || C.beta == null) { C.cap = null; $('camMark').disabled = false; done(elev(), 1.0, true); return; }
+    tick();
+  }
+  function distErr(e, se) { const th = -e * DEG, h = camHmm(); return Math.hypot(SIG_H / Math.tan(th), h / Math.sin(th) ** 2 * se * DEG); }
   $('camMark').onclick = () => {
     if (C.beta == null) { $('camHelp').textContent = 'Start the live camera first.'; return; }
-    const e = elev(), d = floorDist(e);
-    navigator.vibrate && navigator.vibrate(25);
-    if (C.mode === 'D') { if (d) addRow('Distance', d); return; }
-    if (!C.a) { if (!d) { $('camHelp').textContent = 'Aim lower: the cross must be on the floor.'; return; } C.a = { d, e, alpha: C.alpha }; camHelpText(); return; }
-    const L = live(); if (L.v != null) addRow(C.mode === 'H' ? 'Height' : 'Width', L.v);
-    C.a = null; camHelpText();
+    steady((e, se, shaky) => {
+      const d = floorDist(e), note = shaky ? ' (phone was moving)' : '';
+      if (C.mode === 'D') { if (d) addRow('Distance', d, distErr(e, se), note, [{ e, alpha: C.alpha }]); camHelpText(); return; }
+      if (!C.a) { if (!d) { $('camHelp').textContent = 'Aim lower: the cross must be on the floor.'; return; } C.a = { d, e, alpha: C.alpha, sd: distErr(e, se) }; camHelpText(); return; }
+      if (C.mode === 'H') {
+        const ph = e * DEG, H = camHmm() + C.a.d * Math.tan(ph);
+        const u = Math.sqrt(SIG_H ** 2 + (Math.tan(ph) * C.a.sd) ** 2 + (C.a.d / Math.cos(ph) ** 2 * se * DEG) ** 2);
+        addRow('Height', H, u, note, [{ e: C.a.e, alpha: C.a.alpha }, { e, alpha: C.alpha }]);
+      } else { const L = live(); if (L.v != null) addRow('Width', L.v, null, ' (compass - rough)', [{ e: C.a.e, alpha: C.a.alpha }, { e, alpha: C.alpha }]); }
+      C.a = null; camHelpText();
+    });
   };
   $('camReset').onclick = () => { C.a = null; camHelpText(); };
+  $('camNote').onclick = () => {
+    const t = $('noteVal').value.trim(); if (!t) { $('noteVal').focus(); return; }
+    if (C.beta == null) { $('camHelp').textContent = 'Start the live camera, aim the cross, then pin your note.'; return; }
+    const num = parseFloat(t.replace(/[^0-9.]/g, ' ').trim().split(/\s+/)[0]);
+    addRow('Note', isFinite(num) ? num : 0, null, '', [{ e: elev(), alpha: C.alpha }]);
+    const r = C.rows[C.rows.length - 1]; r.text = t; r.label = t; camTable(); $('noteVal').value = '';
+  };
+  $('camClearPins').onclick = () => { C.rows.forEach(r => r.pts = null); };
+  $('camSnap').onclick = () => {
+    const v = $('video'), w = 1280, h = Math.round(w * ov.height / ov.width);
+    const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
+    if (v.videoWidth) {                                  // replicate object-fit: cover
+      const s = Math.max(w / v.videoWidth, h / v.videoHeight), vw = v.videoWidth * s, vh = v.videoHeight * s;
+      g.drawImage(v, (w - vw) / 2, (h - vh) / 2, vw, vh);
+    } else { g.fillStyle = '#222'; g.fillRect(0, 0, w, h); }
+    g.drawImage(ov, 0, 0, w, h);
+    const t = document.createElement('canvas'); t.width = 360; t.height = Math.round(360 * h / w); t.getContext('2d').drawImage(c, 0, 0, t.width, t.height);
+    addSaved({ type: 'camera', title: 'Camera snapshot (' + C.rows.length + ' readings)', text: camText(), thumb: t.toDataURL('image/jpeg', .75) });
+    $('camMsg').textContent = 'Snapshot saved with measurements.';
+  };
   ['cmD', 'cmH', 'cmW'].forEach((id, i) => $(id).onclick = () => setCamMode('DHW'[i]));
   $('camStart').onclick = startCam;
   const hShow = () => $('hShow').textContent = fmt(camHmm());
@@ -842,12 +999,12 @@ input[type=range]{width:100%;accent-color:var(--accent)}
     $('camH').value = Math.round(D * Math.tan(dep)); hShow(); store.set('anpr.camH', camHmm());
     $('camHelp').textContent = `Camera height set to ${fmt(camHmm())}. Keep the phone at this height.`;
   };
-  function camText() { return ['Item,Type,Value (mm)', `Camera height,setting,${camHmm()}`].concat(C.rows.map(r => `${r.label.replace(/,/g, ' ')},${r.type},${Math.round(r.v)}`)).join('\n'); }
+  function camText() { return ['Item,Type,Value (mm),Likely error (mm)', `Camera height,setting,${camHmm()},`].concat(C.rows.map(r => `${r.label.replace(/,/g, ' ')},${r.type},${r.type === 'Note' ? '' : Math.round(r.v)},${r.u == null ? '' : '+/-' + Math.round(r.u)}`)).join('\n'); }
   function camTable() {
     const tb = $('camList'); tb.innerHTML = ''; $('camEmpty').hidden = C.rows.length > 0;
     C.rows.forEach((r, i) => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td><input type="text" id="camLab${i}" aria-label="Item name"></td><td class="small">${r.type}</td><td class="num">${fmt(r.v)}</td><td><button type="button">Delete</button></td>`;
+      tr.innerHTML = `<td><input type="text" id="camLab${i}" aria-label="Item name"></td><td class="small">${r.type}${r.note}</td><td class="num">${r.type === 'Note' ? '-' : fmt(r.v)}<br>${window.accChip ? window.accChip(r.v, r.u) : ''}</td><td><button type="button">Delete</button></td>`;
       const inp = tr.querySelector('input'); inp.value = r.label; inp.oninput = () => r.label = inp.value;
       tr.querySelector('button').onclick = () => { C.rows.splice(i, 1); camTable(); };
       tb.appendChild(tr);
@@ -859,6 +1016,153 @@ input[type=range]{width:100%;accent-color:var(--accent)}
   hShow(); setCamMode('D'); camTable();
   // test hook: lets the browser test feed sensor values
   window.__anprCamTest = (beta, alpha, gamma = 0) => { onOri({ beta, alpha, gamma }); C.beta = beta; C.alpha = alpha; if (!C.raf) frame(); return live(); };
+
+  // ---------------- AR measure (WebXR + ARCore hit-test) ----------------
+  const AR = { mode: 'dist', sess: null, renderer: null, scene: null, cam: null, reticle: null, hit: null,
+    cur: null, pts: [], objs: [], rubber: null, results: [], n: 0, labels: [] };
+  const arHelp = {
+    dist: 'Tap Add point at each end. Keep adding points for a chain; each segment and the total are shown.',
+    height: 'Point 1 at the base (floor), point 2 at the top on the wall. Gives the vertical height.',
+    area: 'Add points around the outline on the floor or wall, then tap Finish. Gives area and perimeter.',
+    angle: 'Three points: one end, the corner, the other end. Gives the angle at the corner.',
+    vol: 'Points 1-2 along the length, point 3 across the width (floor), point 4 at the top height on a wall.' };
+  function arSetMode(m) { AR.mode = m; document.querySelectorAll('[data-arm]').forEach(b => b.classList.toggle('on', b.dataset.arm === m)); $('arModeHelp').textContent = arHelp[m]; arClearPts(); }
+  document.querySelectorAll('[data-arm]').forEach(b => b.onclick = () => arSetMode(b.dataset.arm));
+  (async () => {
+    let ok = false;
+    try { ok = !!(navigator.xr && await navigator.xr.isSessionSupported('immersive-ar')); } catch (e) {}
+    $('arSupport').textContent = ok ? 'AR is supported on this phone.' :
+      (window.isSecureContext ? 'This phone or browser does not support AR (needs Chrome on an ARCore phone with "Google Play Services for AR" installed). Use Tilt camera or Photo ruler instead.' : 'Open the installed app (https address) to use AR.');
+    $('arStart').disabled = !ok;
+  })();
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  function mat(c) { return new THREE.MeshBasicMaterial({ color: c, depthTest: false, transparent: true }); }
+  function arDot(p, c = 0xC46A2B) { const m = new THREE.Mesh(new THREE.SphereGeometry(0.012, 16, 12), mat(c)); m.position.copy(p); m.renderOrder = 2; AR.scene.add(m); AR.objs.push(m); return m; }
+  function arBar(a, b, c = 0xFFFFFF, keep = true) {
+    const L = a.distanceTo(b); const m = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, Math.max(L, 1e-4), 8), mat(c));
+    m.position.copy(a).add(b).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(V(0, 1, 0), b.clone().sub(a).normalize()); m.renderOrder = 1;
+    AR.scene.add(m); if (keep) AR.objs.push(m); return m;
+  }
+  function arClearPts() {
+    if (AR.scene) { AR.objs.forEach(o => AR.scene.remove(o)); if (AR.rubber) AR.scene.remove(AR.rubber); }
+    AR.objs = []; AR.pts = []; AR.rubber = null; AR.labels = []; $('arLabels').innerHTML = '';
+  }
+  const mm = m => m * 1000;
+  function newellArea(P) {                                       // planar polygon area (any orientation)
+    const n = V(0, 0, 0);
+    for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length]; n.x += (a.y - b.y) * (a.z + b.z); n.y += (a.z - b.z) * (a.x + b.x); n.z += (a.x - b.x) * (a.y + b.y); }
+    return n.length() / 2;
+  }
+  function liveValue() {
+    const P = AR.pts.slice(), c = AR.cur;
+    if (!c) return ['Find a surface', null];
+    const Q = P.concat([c]);
+    switch (AR.mode) {
+      case 'dist': return P.length ? ['Segment / total', `${fmt(mm(P[P.length - 1].distanceTo(c)))} / ${fmt(mm(chain(Q)))}`] : ['Aim at the first point', null];
+      case 'height': return P.length ? ['Height', fmt(mm(Math.abs(c.y - P[0].y)))] : ['Aim at the base', null];
+      case 'area': return P.length >= 2 ? ['Area so far', (newellArea(Q)).toFixed(2) + ' m²'] : ['Add outline points', null];
+      case 'angle': return P.length === 2 ? ['Angle', angleAt(P[0], P[1], c).toFixed(1) + '°'] : ['Add 3 points', null];
+      case 'vol': return ['Volume: point ' + Math.min(4, P.length + 1) + ' of 4', P.length === 3 ? (volume(P.concat([c]))).toFixed(2) + ' m³' : null];
+    }
+  }
+  const chain = P => P.slice(1).reduce((s, p, i) => s + p.distanceTo(P[i]), 0);
+  function angleAt(a, o, b) { const u = a.clone().sub(o).normalize(), v = b.clone().sub(o).normalize(); return Math.acos(Math.max(-1, Math.min(1, u.dot(v)))) * 180 / Math.PI; }
+  function volume(P) {
+    const [a, b, c, d] = P, L = a.distanceTo(b);
+    const ab = b.clone().sub(a).normalize(), ac = c.clone().sub(a), Wv = ac.sub(ab.multiplyScalar(ac.dot(ab)));   // width perpendicular to length
+    Wv.y = 0; const W = Wv.length(), H = Math.abs(d.y - c.y);
+    return L * W * H;
+  }
+  function arLabel(p, text) {                                    // label pinned to a 3D point
+    const el = document.createElement('div'); el.className = 'ar-lab'; el.textContent = text; $('arLabels').appendChild(el);
+    AR.labels.push({ p: p.clone(), el });
+  }
+  function placeLabels() {
+    const xrCam = AR.renderer.xr.getCamera(AR.cam), c0 = xrCam.cameras && xrCam.cameras[0] ? xrCam.cameras[0] : xrCam;
+    const W = window.innerWidth, H = window.innerHeight;
+    AR.labels.forEach(l => {
+      const v = l.p.clone().project(c0), vis = v.z < 1 && Math.abs(v.x) < 1.2 && Math.abs(v.y) < 1.2;
+      l.el.style.display = vis ? 'block' : 'none';
+      if (vis) l.el.style.transform = `translate(${(v.x + 1) / 2 * W}px, ${(1 - v.y) / 2 * H}px) translate(-50%, -140%)`;
+    });
+  }
+  function record(type, value, unit, text) { AR.n++; AR.results.push({ label: type + ' ' + AR.n, type, value, unit, text }); arTable(); }
+  function arAdd() {
+    if (!AR.cur) { $('arLiveLab').textContent = 'No surface yet - move the phone slowly'; return; }
+    const p = AR.cur.clone(), P = AR.pts; navigator.vibrate && navigator.vibrate(20);
+    if (P.length) arBar(P[P.length - 1], p);
+    arDot(p); P.push(p);
+    if (AR.mode === 'dist' && P.length >= 2) arLabel(P[P.length - 2].clone().add(p).multiplyScalar(0.5), fmt(mm(P[P.length - 2].distanceTo(p))));
+    if (AR.mode === 'height' && P.length === 2) { const h = mm(Math.abs(p.y - P[0].y)); arLabel(p, 'H ' + fmt(h)); record('Height', h, 'mm', fmt(h)); finishShape(true); }
+    if (AR.mode === 'angle' && P.length === 3) { const a = angleAt(P[0], P[1], P[2]); arLabel(P[1], a.toFixed(1) + '°'); record('Angle', a, 'deg', a.toFixed(1) + '°'); finishShape(true); }
+    if (AR.mode === 'vol' && P.length === 4) {
+      const v = volume(P), L = mm(P[0].distanceTo(P[1]));
+      arLabel(P[3], v.toFixed(2) + ' m³'); record('Volume', v, 'm3', v.toFixed(2) + ' m³ (L ' + fmt(L) + ')'); finishShape(true);
+    }
+  }
+  function finishShape(auto) {
+    const P = AR.pts;
+    if (!auto) {
+      if (AR.mode === 'dist' && P.length >= 2) { const t = mm(chain(P)); P.slice(1).forEach((p, i) => record('Length', mm(p.distanceTo(P[i])), 'mm', fmt(mm(p.distanceTo(P[i]))))); if (P.length > 2) record('Total length', t, 'mm', fmt(t)); }
+      if (AR.mode === 'area' && P.length >= 3) {
+        arBar(P[P.length - 1], P[0]); const A = newellArea(P), per = mm(chain(P.concat([P[0]])));
+        const c = P.reduce((s, p) => s.add(p), V(0, 0, 0)).multiplyScalar(1 / P.length); arLabel(c, A.toFixed(2) + ' m²');
+        record('Area', A, 'm2', A.toFixed(2) + ' m²'); record('Perimeter', per, 'mm', fmt(per));
+      }
+    }
+    // keep drawn objects on view, start a fresh shape
+    AR.pts = []; if (AR.rubber) { AR.scene.remove(AR.rubber); AR.rubber = null; }
+  }
+  async function arStart() {
+    if (typeof THREE === 'undefined') { $('arSupport').textContent = 'AR library did not load - connect to the internet once, then try again.'; return; }
+    try {
+      const sess = await navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['hit-test'], optionalFeatures: ['dom-overlay'], domOverlay: { root: $('arOverlay') } });
+      AR.sess = sess; $('arOverlay').hidden = false;
+      const r = new THREE.WebGLRenderer({ alpha: true, antialias: true }); r.setPixelRatio(devicePixelRatio); r.setSize(innerWidth, innerHeight);
+      r.xr.enabled = true; r.xr.setReferenceSpaceType('local'); r.domElement.className = 'ar-canvas'; document.body.appendChild(r.domElement);
+      AR.renderer = r; AR.scene = new THREE.Scene(); AR.cam = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.01, 50);
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.04, 0.055, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xC46A2B }));
+      ring.matrixAutoUpdate = false; ring.visible = false; AR.scene.add(ring); AR.reticle = ring;
+      await r.xr.setSession(sess);
+      const viewer = await sess.requestReferenceSpace('viewer'); AR.hit = await sess.requestHitTestSource({ space: viewer });
+      sess.addEventListener('end', arEnded);
+      r.setAnimationLoop((t, frame) => {
+        if (frame && AR.hit) {
+          const hits = frame.getHitTestResults(AR.hit), ref = r.xr.getReferenceSpace();
+          if (hits.length) { const pose = hits[0].getPose(ref); ring.visible = true; ring.matrix.fromArray(pose.transform.matrix); AR.cur = V(0, 0, 0).setFromMatrixPosition(ring.matrix); }
+          else { ring.visible = false; AR.cur = null; }
+        }
+        if (AR.rubber) { AR.scene.remove(AR.rubber); AR.rubber = null; }
+        if (AR.cur && AR.pts.length) AR.rubber = arBar(AR.pts[AR.pts.length - 1], AR.cur, 0xC46A2B, false);
+        const [lab, val] = liveValue(); $('arLiveLab').textContent = lab; $('arLive').textContent = val || '--';
+        r.render(AR.scene, AR.cam); placeLabels();
+      });
+    } catch (e) { $('arSupport').textContent = 'Could not start AR: ' + (e.message || e) + '. Check camera permission for Chrome.'; arEnded(); }
+  }
+  function arEnded() {
+    if (AR.renderer) { AR.renderer.setAnimationLoop(null); AR.renderer.domElement.remove(); AR.renderer.dispose(); }
+    AR.sess = null; AR.renderer = null; AR.hit = null; AR.cur = null; arClearPts(); AR.scene = null; $('arOverlay').hidden = true;
+  }
+  $('arStart').onclick = arStart;
+  $('arAdd').onclick = arAdd;
+  $('arUndo').onclick = () => { if (!AR.pts.length) return; AR.pts.pop(); const o = AR.objs.pop(); if (o) AR.scene.remove(o); if (AR.pts.length) { const b = AR.objs.pop(); if (b) AR.scene.remove(b); } };
+  $('arDone').onclick = () => finishShape(false);
+  $('arExit').onclick = () => { if (AR.sess) AR.sess.end(); };
+  function arText() { return ['Item,Type,Value'].concat(AR.results.map(r => `${r.label.replace(/,/g, ' ')},${r.type},${r.text}`)).join('\n'); }
+  function arTable() {
+    const tb = $('arList'); tb.innerHTML = ''; $('arEmpty').hidden = AR.results.length > 0;
+    AR.results.forEach((r, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td><input type="text" id="arLab${i}" aria-label="Item name"></td><td class="small">${r.type}</td><td class="num">${r.text}</td><td><button type="button">Delete</button></td>`;
+      const inp = tr.querySelector('input'); inp.value = r.label; inp.oninput = () => r.label = inp.value;
+      tr.querySelector('button').onclick = () => { AR.results.splice(i, 1); arTable(); };
+      tb.appendChild(tr);
+    });
+  }
+  $('arSave').onclick = () => { if (!AR.results.length) return; addSaved({ type: 'AR', title: 'AR measurements (' + AR.results.length + ')', text: arText() }); $('arMsg').textContent = 'Saved.'; };
+  $('arCopy').onclick = () => navigator.clipboard.writeText(arText()).then(() => $('arMsg').textContent = 'Copied.', () => $('arMsg').textContent = 'Copy not available here.');
+  arSetMode('dist'); arTable();
+  window.__anprAR = { newellArea, angleAt, volume, V };          // test hook for the maths
 
   // ---------------- plan ----------------
   const pcv = $('pcv'), pc = pcv.getContext('2d');

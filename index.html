@@ -119,6 +119,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .camov{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .livebig{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(15,21,27,.8);color:#fff;border-radius:10px;padding:6px 14px;text-align:center;min-width:180px;display:flex;flex-direction:column}
 .livebig small{font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;opacity:.8}
+.livebig b.msg{font-size:1rem;font-family:var(--f-ui)}
 .livebig b{font-family:var(--f-num);font-size:1.6rem;color:var(--accent);font-variant-numeric:tabular-nums}
 .levelwarn{position:absolute;top:84px;left:50%;transform:translateX(-50%);background:var(--warn);color:#fff;font-weight:700;font-size:.85rem;padding:4px 10px;border-radius:6px}
 button.big{min-height:52px;padding:10px 26px;font-size:1.05rem}
@@ -238,6 +239,10 @@ input[type=range]{width:100%;accent-color:var(--accent)}
     <div class="cal">
       <label for="camH">Camera height above floor (mm)<input id="camH" type="number" min="200" step="10" value="1500"></label>
       <label for="camFov">Camera view angle (&deg;)<input id="camFov" type="number" min="30" max="100" step="1" value="62"></label>
+      <label for="surfH">Target surface height (mm)<input id="surfH" type="number" min="0" step="10" value="0"></label>
+    </div>
+    <p class="small" style="margin:0">Leave target surface at 0 when aiming at the floor. If you aim at a table, bench or deck, enter its height above the floor you are standing on.</p>
+    <div class="cal">
     </div>
     <p class="small" style="margin:0"><b>Calibrate on your own:</b> tape a known distance from your feet to a mark on the floor (for example 3000 mm). Stand on your start point, aim the cross at the mark and tap Calibrate. The app works out your camera height.</p>
     <div class="cal">
@@ -816,23 +821,32 @@ input[type=range]{width:100%;accent-color:var(--accent)}
   const C = { stream: null, beta: null, gamma: 0, alpha: null, mode: 'D', a: null, rows: [], n: 0, raf: 0 };
   const DEG = Math.PI / 180, wrap = d => ((d + 540) % 360) - 180;
   const camHmm = () => +$('camH').value || 1500;
+  const surfH = () => Math.max(0, +$('surfH').value || 0);
+  const hEff = () => Math.max(50, camHmm() - surfH());          // camera height above the surface aimed at
+  // Camera pointing angle from BOTH tilt axes, so holding the phone slightly sideways no longer skews readings.
+  // Back camera looks along device -Z; world-up component = -cos(beta)cos(gamma).
+  const elevFrom = (b, g) => Math.asin(Math.max(-1, Math.min(1, -Math.cos(b * DEG) * Math.cos((g || 0) * DEG)))) / DEG;
+  const MIN_DEP = 8, MAX_D = 10000;                             // below 8 deg down, or past 10 m, readings are not trustworthy
   function onOri(e) {
     if (e.beta == null) return;
-    if (C.cap) C.cap.push(e.beta);
+    const eRaw = elevFrom(e.beta, e.gamma);
+    if (C.cap) C.cap.push(eRaw);
     const k = 0.25;                                             // smoothing
+    C.e = C.e == null ? eRaw : C.e + k * (eRaw - C.e);
     C.beta = C.beta == null ? e.beta : C.beta + k * (e.beta - C.beta);
     C.gamma = C.gamma + k * ((e.gamma || 0) - C.gamma);
     if (e.alpha != null) C.alpha = C.alpha == null ? e.alpha : C.alpha + k * wrap(e.alpha - C.alpha);
   }
-  const elev = () => (C.beta - 90);                             // + up, - down (degrees)
-  function floorDist(e) { const dep = -e * DEG; return dep > 0.02 ? camHmm() / Math.tan(dep) : null; }
+  const elev = () => (C.e == null ? 0 : C.e);                  // + up, - down (degrees)
+  function floorDist(e) { const dep = -e; if (dep < MIN_DEP || dep > 88) return null; const d = hEff() / Math.tan(dep * DEG); return d <= MAX_D ? d : null; }
   function live() {
     if (C.beta == null) return { label: 'Distance', v: null };
     const e = elev();
-    if (C.mode === 'D') return { label: 'Distance to floor point', v: floorDist(e) };
+    if (C.mode === 'D') return { label: surfH() ? 'Distance to point on surface' : 'Distance to floor point', v: floorDist(e) };
     if (C.mode === 'H') {
       if (!C.a) return { label: 'Aim at the base, tap Mark', v: floorDist(e), sub: true };
-      return { label: 'Height above floor', v: camHmm() + C.a.d * Math.tan(e * DEG) };
+      if (Math.abs(e) > 70) return { label: 'Too steep', v: null };
+      return { label: surfH() ? 'Height above surface' : 'Height above floor', v: hEff() + C.a.d * Math.tan(e * DEG) };
     }
     const d = floorDist(e);
     if (!C.a) return { label: 'Aim at first point, tap Mark', v: d, sub: true };
@@ -870,7 +884,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
       }
     }
     // every saved reading stays pinned on the view
-    C.rows.forEach(rw => { if (rw.pts) drawPin(rw, cx, cy); });
+    C.rows.filter(rw => rw.pts).slice(-4).forEach(rw => drawPin(rw, cx, cy));   // last 4 readings only, keeps the view clear
     // crosshair with ring
     oc.lineWidth = 2; oc.strokeStyle = 'rgba(0,0,0,.55)'; oc.beginPath(); oc.arc(cx, cy, 15, 0, 7); oc.stroke();
     oc.strokeStyle = acc; oc.beginPath(); oc.arc(cx, cy, 14, 0, 7); oc.stroke();
@@ -879,10 +893,12 @@ input[type=range]{width:100%;accent-color:var(--accent)}
     oc.fillStyle = acc; oc.beginPath(); oc.arc(cx, cy, 2.5, 0, 7); oc.fill();
     // readouts
     $('liveLab').textContent = L.label;
-    $('liveVal').textContent = L.v != null && L.v > 0 && L.v < 60000 ? fmt(L.v) : (C.beta == null ? '--' : 'aim lower');
+    const dep = -elev();
+    $('liveVal').classList.toggle('msg', !(L.v != null && L.v > 0));
+    $('liveVal').textContent = L.v != null && L.v > 0 ? fmt(L.v) : (C.beta == null ? '--' : dep < MIN_DEP ? 'aim lower / closer' : dep > 88 ? 'tilt up a little' : 'out of range');
     if (C.mode === 'H' && C.a && L.v != null) $('liveVal').textContent = fmt(L.v);
     $('tilt').textContent = C.beta == null ? '--' : (elev() <= 0 ? (-elev()).toFixed(1) + '° down' : elev().toFixed(1) + '° up');
-    $('levelWarn').hidden = C.beta == null || Math.abs(C.gamma) < 12;
+    $('levelWarn').hidden = C.beta == null || Math.abs(C.gamma) < 40;
   }
   async function startCam() {
     try { if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) await DeviceOrientationEvent.requestPermission(); } catch (e) {}
@@ -898,7 +914,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
   }
   function stopCam() {
     if (C.stream) C.stream.getTracks().forEach(t => t.stop()); C.stream = null; $('video').srcObject = null;
-    window.removeEventListener('deviceorientation', onOri); cancelAnimationFrame(C.raf); $('camOff').hidden = false;
+    window.removeEventListener('deviceorientation', onOri); cancelAnimationFrame(C.raf); C.raf = 0; oc.setTransform(1, 0, 0, 1, 0, 0); oc.clearRect(0, 0, ov.width, ov.height); C.beta = null; C.e = null; $('liveVal').textContent = '--'; $('liveLab').textContent = 'Distance'; $('tilt').textContent = '--'; $('camOff').hidden = false;
   }
   function setCamMode(m) {
     C.mode = m; C.a = null;
@@ -919,6 +935,11 @@ input[type=range]{width:100%;accent-color:var(--accent)}
     oc.fillStyle = col; oc.beginPath(); oc.roundRect(X, y - 13, w, 26, 6); oc.fill();
     oc.fillStyle = '#fff'; oc.fillText(text, X + 7, y + 5);
   }
+  function tagSide(x, y, cx, text, col) {                      // put the label on the side away from the crosshair
+    oc.font = '700 13px ' + css('--f-num'); const w = oc.measureText(text).width + 14;
+    const X = x < cx ? x - w - 14 : x + 14, Y = Math.abs(y - ov.getBoundingClientRect().height / 2) < 30 ? y - 34 : y;
+    tag(X, Y, text, col);
+  }
   function dot(p, col) { oc.beginPath(); oc.arc(p[0], p[1], 8, 0, 7); oc.fillStyle = col; oc.fill(); oc.lineWidth = 3; oc.strokeStyle = '#fff'; oc.stroke(); }
   function drawPin(rw, cx, cy) {
     const col = rw.type === 'Note' ? css('--navy') === '#8FB3E0' ? '#3E6BA8' : '#1B365D' : '#1F7A5A';
@@ -928,9 +949,9 @@ input[type=range]{width:100%;accent-color:var(--accent)}
       oc.lineWidth = 6; oc.strokeStyle = 'rgba(255,255,255,.9)'; oc.beginPath(); oc.moveTo(...P[0]); oc.lineTo(...P[1]); oc.stroke();
       oc.lineWidth = 3; oc.strokeStyle = col; oc.beginPath(); oc.moveTo(...P[0]); oc.lineTo(...P[1]); oc.stroke();
       P.forEach(q => dot(q, col));
-      tag((P[0][0] + P[1][0]) / 2 + 10, (P[0][1] + P[1][1]) / 2, `${rw.label}: ${fmt(rw.v)}`, col);
+      const mx = (P[0][0] + P[1][0]) / 2, my = (P[0][1] + P[1][1]) / 2; tagSide(mx, my, cx, `${rw.label}: ${fmt(rw.v)}`, col);
     } else {
-      dot(P[0], col); tag(P[0][0] + 12, P[0][1] - 14, rw.type === 'Note' ? rw.text : `${rw.label}: ${fmt(rw.v)}`, col);
+      dot(P[0], col); tagSide(P[0][0], P[0][1] - 14, cx, rw.type === 'Note' ? rw.text : `${rw.label}: ${fmt(rw.v)}`, col);
     }
   }
   // Steady capture: average the tilt over ~1.5 s once the phone is still; estimate the error.
@@ -945,21 +966,22 @@ input[type=range]{width:100%;accent-color:var(--accent)}
       $('camHelp').textContent = sd > 0.35 ? 'Hold still...' : 'Capturing...';
       if ((el > 1500 && recent.length >= 20 && sd <= 0.35) || el > 5000) {
         C.cap = null; $('camMark').disabled = false; navigator.vibrate && navigator.vibrate(30);
-        done(mean - 90, Math.sqrt(SIG_BIAS ** 2 + (sd / Math.sqrt(Math.max(1, recent.length))) ** 2), sd > 0.35);
+        done(mean, Math.sqrt(SIG_BIAS ** 2 + (sd / Math.sqrt(Math.max(1, recent.length))) ** 2), sd > 0.35);
       } else setTimeout(tick, 60);
     };
     if (!('ondeviceorientation' in window) || C.beta == null) { C.cap = null; $('camMark').disabled = false; done(elev(), 1.0, true); return; }
     tick();
   }
-  function distErr(e, se) { const th = -e * DEG, h = camHmm(); return Math.hypot(SIG_H / Math.tan(th), h / Math.sin(th) ** 2 * se * DEG); }
+  function distErr(e, se) { const th = -e * DEG, h = hEff(); return Math.hypot(SIG_H / Math.tan(th), h / Math.sin(th) ** 2 * se * DEG); }
   $('camMark').onclick = () => {
     if (C.beta == null) { $('camHelp').textContent = 'Start the live camera first.'; return; }
     steady((e, se, shaky) => {
       const d = floorDist(e), note = shaky ? ' (phone was moving)' : '';
-      if (C.mode === 'D') { if (d) addRow('Distance', d, distErr(e, se), note, [{ e, alpha: C.alpha }]); camHelpText(); return; }
+      if (C.mode === 'D') { if (!d) { $('camHelp').textContent = -e < MIN_DEP ? 'Not recorded: aim lower at the floor, or move closer (the cross must point at least 8\u00b0 down).' : 'Not recorded: out of range.'; return; } addRow('Distance', d, distErr(e, se), note, [{ e, alpha: C.alpha }]); camHelpText(); return; }
       if (!C.a) { if (!d) { $('camHelp').textContent = 'Aim lower: the cross must be on the floor.'; return; } C.a = { d, e, alpha: C.alpha, sd: distErr(e, se) }; camHelpText(); return; }
       if (C.mode === 'H') {
-        const ph = e * DEG, H = camHmm() + C.a.d * Math.tan(ph);
+        if (Math.abs(e) > 70) { $('camHelp').textContent = 'Too steep: step back so the top is less than 70\u00b0 up.'; return; }
+        const ph = e * DEG, H = hEff() + C.a.d * Math.tan(ph);
         const u = Math.sqrt(SIG_H ** 2 + (Math.tan(ph) * C.a.sd) ** 2 + (C.a.d / Math.cos(ph) ** 2 * se * DEG) ** 2);
         addRow('Height', H, u, note, [{ e: C.a.e, alpha: C.a.alpha }, { e, alpha: C.alpha }]);
       } else { const L = live(); if (L.v != null) addRow('Width', L.v, null, ' (compass - rough)', [{ e: C.a.e, alpha: C.a.alpha }, { e, alpha: C.alpha }]); }
@@ -992,14 +1014,16 @@ input[type=range]{width:100%;accent-color:var(--accent)}
   const hShow = () => $('hShow').textContent = fmt(camHmm());
   $('camH').addEventListener('input', () => { hShow(); store.set('anpr.camH', camHmm()); });
   $('camFov').addEventListener('input', () => store.set('anpr.fov', +$('camFov').value));
+  $('surfH').addEventListener('input', () => store.set('anpr.surfH', surfH()));
+  if (store.get('anpr.surfH', null) != null) $('surfH').value = store.get('anpr.surfH');
   $('camCal').onclick = () => {
     if (C.beta == null) { $('camHelp').textContent = 'Start the live camera, then aim at your floor mark.'; return; }
     const dep = -elev() * DEG, D = +$('calDist').value;
     if (dep <= 0.02 || !(D > 0)) { $('camHelp').textContent = 'Aim the cross down at the floor mark, then tap Calibrate.'; return; }
-    $('camH').value = Math.round(D * Math.tan(dep)); hShow(); store.set('anpr.camH', camHmm());
+    $('camH').value = Math.round(D * Math.tan(dep) + surfH()); hShow(); store.set('anpr.camH', camHmm());
     $('camHelp').textContent = `Camera height set to ${fmt(camHmm())}. Keep the phone at this height.`;
   };
-  function camText() { return ['Item,Type,Value (mm),Likely error (mm)', `Camera height,setting,${camHmm()},`].concat(C.rows.map(r => `${r.label.replace(/,/g, ' ')},${r.type},${r.type === 'Note' ? '' : Math.round(r.v)},${r.u == null ? '' : '+/-' + Math.round(r.u)}`)).join('\n'); }
+  function camText() { return ['Item,Type,Value (mm),Likely error (mm)', `Camera height,setting,${camHmm()},`, `Target surface height,setting,${surfH()},`].concat(C.rows.map(r => `${r.label.replace(/,/g, ' ')},${r.type},${r.type === 'Note' ? '' : Math.round(r.v)},${r.u == null ? '' : '+/-' + Math.round(r.u)}`)).join('\n'); }
   function camTable() {
     const tb = $('camList'); tb.innerHTML = ''; $('camEmpty').hidden = C.rows.length > 0;
     C.rows.forEach((r, i) => {
@@ -1015,7 +1039,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
   if (store.get('anpr.camH', null)) $('camH').value = store.get('anpr.camH'); if (store.get('anpr.fov', null)) $('camFov').value = store.get('anpr.fov');
   hShow(); setCamMode('D'); camTable();
   // test hook: lets the browser test feed sensor values
-  window.__anprCamTest = (beta, alpha, gamma = 0) => { onOri({ beta, alpha, gamma }); C.beta = beta; C.alpha = alpha; if (!C.raf) frame(); return live(); };
+  window.__anprCamTest = (beta, alpha, gamma = 0) => { onOri({ beta, alpha, gamma }); C.beta = beta; C.alpha = alpha; C.e = elevFrom(beta, gamma); if (!C.raf) frame(); return live(); };
 
   // ---------------- AR measure (WebXR + ARCore hit-test) ----------------
   const AR = { mode: 'dist', sess: null, renderer: null, scene: null, cam: null, reticle: null, hit: null,
